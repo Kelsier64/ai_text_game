@@ -1,0 +1,4 @@
+ "long_term_memory":[{"importance":70,"relationship":{"Jack": "my class mate"}},{"importance":30,"environment":"i have a tv in my room"},{"importance":30,"thought_about_jack":"he is a nice person"},{"importance":70,"vaules":"your vaules"},{"importance":70,"beliefs":"your beliefs"}],
+ 2.You can modify or leave unchanged any data returned.
+
+3.Feel free to add or remove keys from both long-term and short-term memory json.
