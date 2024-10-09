@@ -79,28 +79,26 @@ short_term_memory:{character.short_term_memory}
 
 today_log:{character.today_log}
 
-"Importance" is the importance level of this memory; 100 is important as life, while below 30 indicates it can be easily forgotten.
-However,above 70 mean that you should remember it well.
 """
 
     Instructions ="""
 You are currently asleep, and you are processing your mind.
 Instructions:
 
-1.Adjust the "importance" level as needed
-2.You can modify or leave unchanged any data returned.
-3.Feel free to add or remove json deta from short-term memory.
-4.memory should be clear and concise.
-5.every memory you generate according to the deta.
-6.DO NOT fabricated any memories on your own.
-7.DO NOT generate new schedule.
+
+1.You can modify or leave unchanged any data returned.
+2.Feel free to add or remove json deta from short-term memory.
+3.memory should be clear and concise.
+4.every memory you generate according to the deta.
+5.DO NOT fabricated any memories on your own.
+6.DO NOT generate new schedule.
 
 ***Do the following step by step:***
 
-1.reevaluate all the "importance" level of memories.
-2.Summarize today_log to a paragraph like:today_sum:"it was a good day" with details and short_term_memory.
-3.Summarize relative short_term_memory.
-4.forget unimportant things or things you already done.
+
+1.Summarize today_log to a paragraph like:today_sum:"it was a good day" with details and short_term_memory.
+2.Summarize relative short_term_memory.
+3.delete unimportant memories or memories that you already done.
 
 Response Format:
 Use JSON with keys: "short_term_memory","today_sum"
@@ -110,8 +108,8 @@ Example of a valid JSON response:
 {
     "short_term_memory":
     [
-    {"importance":70,"schedule":"12:00 wake up"},
-    {"importance":30,"thought":"i want to buy a cay"}
+    {"schedule":"7:00 wake up,8:00 eat breakfast,9:00 go to school"},
+    {"thought":"i want to buy a cay"}
     ],
     "today_sum":"it was a good day"
 }'''
@@ -205,9 +203,6 @@ life_memory:{character.life_memory}
 
 short_term_memory:{character.short_term_memory}
 
-"Importance" is the importance level of this memory; 100 is important as life, while below 50 indicates it can be easily forgotten.
-However,above 50 mean that you should remember it well.
-
 """
 
     Instructions ="""
@@ -221,14 +216,13 @@ Instructions:
 4.every memory you generate according to the deta.
 5.DO NOT fabricated any memories on your own.
 6.DO NOT update schedule to long-term memory.
+7.DO NOT update life_memory to long-term memory.
 
 ***Do the following step by step:***
 
-1.base on all data ,update long-term memory.
-2.Reevaluate all the "importance" level of memories.
-
-3.forget unimportant things or things you already done.
-4.clear short_term_memory that you have update.
+1.update important short-term memory into long-term memory.
+2.delete unimportant memories or memories that you already done.
+3.delete short_term_memory that you have update.
 
 Response Format:
 Use JSON with keys: "long_term_memory","short_term_memory"
@@ -238,15 +232,15 @@ Example of a valid JSON response:
 {
   "long_term_memory":
   [
-  {"importance":70,"relationship":{"Jack": "my class mate"}},
-  {"importance":30,"environment":"i have a tv in my room"},
-  {"importance":30,"thought_about_jack":"he is a nice person"},
-  {"importance":70,"vaules":"your vaules"},
-  {"importance":70,"beliefs":"your beliefs"}],
+  {"relationship":{"Jack": "my class mate"}},
+  {"environment":"i have a tv in my room"},
+  {"thought_about_jack":"he is a nice person"},
+  {"vaules":"your vaules"},
+  {"beliefs":"your beliefs"}],
 "short_term_memory":
     [
-    {"importance":70,"schedule":"12:00 wake up"},
-    {"importance":30,"thought":"i want to buy a cay"}
+    {"schedule":"7:00 wake up,8:00 eat breakfast,9:00 go to school"},
+    {"thought":"i want to buy a cay"}
     ]
 
 }'''
@@ -255,7 +249,7 @@ Example of a valid JSON response:
 """
     messages = [sys_prompt,{"role": "system","content":profile},{"role": "system","content":Instructions}]
     reply = json_request(messages, 2000)
-    character.long_term_memory=reply["long_term_memory"]
+    character.long_term_memory = reply["long_term_memory"]
     character.short_term_memory = reply["short_term_memory"]
     print(reply)
 
@@ -287,8 +281,7 @@ life_memory:{character.life_memory}
 
 short_term_memory:{character.short_term_memory}
 
-"Importance" is the importance level of this memory; 100 is important as life, while below 50 indicates it can be easily forgotten.
-However,above 50 mean that you should remember it well.
+
 
 """
 
@@ -318,11 +311,12 @@ What skills do I need to develop further?
 What motivates me to improve?
 What are my values, and am I living in alignment with them?
 
-update long_term_memory like challenges,proud_of,goal,values 
-or make some text for yourself in self_reflection in long_term_memory.
+after self-reflection,
+update long_term_memory like challenges,proud_of,goal,values,and so on.
+update "self" about what person you are in long_term_memory helping you get to know yourself better.
 
 2.Update mental state and personality if needed.
-3.make a new schedule for tomorrow delete the old one
+3.make a new schedule for tomorrow,and delete the old one.
 
 Response Format:
 Use JSON with keys: "personality","mental_state","long_term_memory","short_term_memory"
@@ -334,15 +328,15 @@ Example of a valid JSON response:
   "mental_state":"normal",
   "long_term_memory":
   [
-  {"importance":70,"relationship":{"Jack": "my class mate"}},
-  {"importance":30,"environment":"i have a tv in my room"},
-  {"importance":30,"thought_about_jack":"he is a nice person"},
-  {"importance":70,"vaules":"your vaules"},
-  {"importance":70,"beliefs":"your beliefs"}],
+  {"relationship":{"Jack": "my class mate"}},
+  {"environment":"i have a tv in my room"},
+  {"thought_about_jack":"he is a nice person"},
+  {"vaules":"your vaules"},
+  {"beliefs":"your beliefs"}],
 "short_term_memory":
     [
-    {"importance":70,"schedule":"12:00 wake up"},
-    {"importance":30,"thought":"i want to buy a cay"}
+    {"schedule":"7:00 wake up,8:00 eat breakfast,9:00 go to school"},
+    {"thought":"i want to buy a cay"}
     ]
 }'''
     
@@ -367,13 +361,13 @@ character1 = Character(
     personality="extrovert",
     mental_state="normal",
     
-    long_term_memory=[{"importance":70,"relationship":{"Kyle": "my class mate"}},{"importance":30,"environment":"i live in NYC, kitchen is next to my room"},{"importance":30,"thought_about_Kyle":"he is a nice person"},{"importance":70,"vaules":"not set"},{"importance":70,"beliefs":"not set"}],
+    long_term_memory=[{"relationship":{"Kyle": "my class mate"}},{"environment":"i live in NYC, kitchen is next to my room"},{"thought_about_Kyle":"he is a nice person"},{"vaules":"not set"},{"beliefs":"not set"}],
     life_memory=[{"yesterday":"I went to school and had math and science classes in the morning. During lunch, I hung out with my friends, and in the afternoon, we had a group project in history. After school, I did some homework and practiced basketball"},
     {"2days_ago":"I spent most of the day studying for a big biology exam. I also had basketball practice after school, which was pretty tiring."},
     {"3days_ago":" I worked on an English essay and helped a friend with some math problems. In the afternoon, I relaxed by playing video games for a bit"},
     {"old_days":" as for the days before they were mostly routine—going to school, attending classes, doing homework, and practicing basketball. I also spent some time hanging out with friends and preparing for upcoming tests. Nothing too out of the ordinary"}],
     short_term_memory=[
-        {"importance":70,"schedule":"7:00 wake up,8:00 go to school"},
+        {"schedule":"7:00 wake up,8:00 go to school"},
         {"reminder": "Finish math homework by tomorrow"},
         {"thought": "Remember to ask the teacher about the project"},
         {"goal": "Practice basketball for at least an hour"},
