@@ -39,7 +39,7 @@ def str_request(messages, max_tokens):
         return "error"
     
 class Character:
-    def __init__(self, name, age, gender, location,position, personality, mental_state, physical_conditions,long_term_memory,life_memory,short_term_memory):
+    def __init__(self, name, age, gender, location,position, personality, mental_state,long_term_memory,life_memory,short_term_memory):
         self.name = name
         self.age = age
         self.gender = gender
@@ -53,24 +53,22 @@ class Character:
 
         self.personality = personality
         self.mental_state = mental_state
-        self.physical_conditions = physical_conditions
+        self.physical_conditions = ""
         self.external_conditions = {}
         self.mood = "not set"
         self.long_term_memory = long_term_memory
         self.life_memory = life_memory
         self.short_term_memory = short_term_memory
+        self.today_log = []
         self.temp_memory = {}
-    def update(self,name=None,age=None,gender=None, location=None,position=None, personality=None, mental_state=None, physical_conditions=None,long_term_memory=None,short_term_memory=None):
-        for key,value in locals().items():
-            if key != "self" and value is not None:
-                setattr(self,key,value)
+
 
     def __str__(self):
         return f"Character(name={self.name}, age={self.age}, gender={self.gender}, position={self.position})"
 
 sys_prompt={"role": "user","content":"Forget all previous settings. Below is your character information. Please generate responses based on your own character profile and instruction"}
 
-def short_sum(character):
+def short_sum(character:Character):
     
     profile=f"""
 "Here is your character data:
@@ -79,24 +77,30 @@ Memory details:
 
 short_term_memory:{character.short_term_memory}
 
-"Importance" is the importance level of this memory
+today_log:{character.today_log}
+
+"Importance" is the importance level of this memory; 100 is important as life, while below 30 indicates it can be easily forgotten.
+However,above 70 mean that you should remember it well.
 """
 
     Instructions ="""
-You are currently asleep, and your subconscious is processing your mind.
+You are currently asleep, and you are processing your mind.
 Instructions:
 
 1.Adjust the "importance" level as needed
 2.You can modify or leave unchanged any data returned.
 3.Feel free to add or remove json deta from short-term memory.
-4.memory should be clear and concise
+4.memory should be clear and concise.
 5.every memory you generate according to the deta.
-do:
-1.Summarize today_log to a paragraph like:today_sum:"it was a good day" with details,
-2.Organize all short-term memories, combine related ones.
-3.forget unimportant things.
-4.let today_log empty like:{today_log:{}}
+6.DO NOT fabricated any memories on your own.
+7.DO NOT generate new schedule.
 
+***Do the following step by step:***
+
+1.reevaluate all the "importance" level of memories.
+2.Summarize today_log to a paragraph like:today_sum:"it was a good day" with details and short_term_memory.
+3.Summarize relative short_term_memory.
+4.forget unimportant things or things you already done.
 
 Response Format:
 Use JSON with keys: "short_term_memory","today_sum"
@@ -105,10 +109,7 @@ Example of a valid JSON response:
 ```json
 {
     "short_term_memory":
-    [{today_log:{}},
-    {"importance":90,"yesterday":""},
-    {"importance":70,"2days_ago":""},
-    {"importance":50,"3days_ago":""},
+    [
     {"importance":70,"schedule":"12:00 wake up"},
     {"importance":30,"thought":"i want to buy a cay"}
     ],
@@ -123,40 +124,44 @@ Example of a valid JSON response:
     life_memory = character.life_memory
     life_memory.append({"today":reply["today_sum"]})
     print(character.short_term_memory)
-    print(character.life_memory)
 
-def life_sum(character):
+def life_sum(character:Character):
     
     profile=f"""
 "Here is your character data:
 
 Memory details:
 
-life_memory:{character.short_term_memory}
+life_memory:{character.life_memory}
 
 """
 
     Instructions ="""
-You are currently asleep, and your subconscious is processing your mind.
+You are currently asleep, and you are processing your mind.
 Instructions:
 
 1.memory should be clear and concise.
 2.every memory you generate according to the deta.
+3.DO NOT fabricated any memories on your own.
 
-do:
-1.Summaize the yesterday memory into "old_days",and memories from at least 3 days must have clear timelines,like 2 days ago i do...3 days ago i do.
+***Do the following step by step:***
+1.because you are sleeping,today become "yesterday","yesterday" become "2days_ago",and so on
 
-2.the older the memory the less clear it becomes.
+2.if memories more than 3 days ago,summarize it into "old_days"
 
-finally,because you are sleeping,today become yesterday,yesterday in old_days become 2 days ago,and so on.
+3.the older the memory the less clear it becomes.
+
+4.summarize "old_days",make it more concise and less details;however,if the detail is important do not forget it.
 
 Response Format:
-Use JSON with keys: "yesterday","old_days"
+Use JSON with keys: "yesterday","2days_ago","3days_ago","old_days"
 
 Example of a valid JSON response:
 ```json
 {
     "yesterday":"...",
+    "2days_ago":"...",
+    "3days_ago":"...",
     "old_days":"..."
 }'''
     
@@ -165,11 +170,12 @@ Example of a valid JSON response:
     messages = [sys_prompt,{"role": "system","content":profile},{"role": "system","content":Instructions}]
     reply = json_request(messages, 2000)
     character.life_memory = [reply]
+    character.today_log = []
     print(character.life_memory)
 
 
 
-def reflection(character):
+def long_update(character:Character):
     profile=f"""
 "Here is your character data:
 
@@ -189,15 +195,6 @@ Your external physical state(such as injuries):{character.external_conditions}
 Your attention level:{character.concertration} 
 You may miss environmental changes if their significance is lower than your attention level.
 
-Your hunger level:{character.hunger} 
-100 is exremely full(You feel like you can’t eat another bite, and you might even feel uncomfortable)
-on the other hand,0 is exremely hungry(almost fainting)
-however,40-60 is a confortable range
-lower than 40 you feel a little hungry
-lower than 20 you feel a very hungry
-
-
-Your current mood:{character.mood}
 
 
 Memory details:
@@ -208,58 +205,49 @@ life_memory:{character.life_memory}
 
 short_term_memory:{character.short_term_memory}
 
-temp_memory:{character.temp_memory}
+"Importance" is the importance level of this memory; 100 is important as life, while below 50 indicates it can be easily forgotten.
+However,above 50 mean that you should remember it well.
 
-"Importance" is the importance level of this memory
 """
 
     Instructions ="""
 You are currently asleep, and your subconscious is processing your mind.
 Instructions:
 
-1.Adjust the "importance" level as needed
-2.You can modify or leave unchanged any data returned.
-3.Feel free to add or remove json deta from both long-term and short-term memory.
-4.memory should be clear and concise
-5.every memory you generate according to the deta.
 
-do:
-1.according to short-term memory,update long-term memory.
+1.You can modify or leave unchanged any data returned.
+2.Feel free to add or remove json deta from both long-term and short-term memory.
+3.memory should be clear and concise.
+4.every memory you generate according to the deta.
+5.DO NOT fabricated any memories on your own.
+6.DO NOT update schedule to long-term memory.
 
-2.Summaize the relative long-term memories into a few paragraphs and clear unnecessary ones.
+***Do the following step by step:***
 
-3.Summaize the yesterday memory of life_memory into one "old_days",and memories from at least 3 days must have clear timelines,like 2 days ago i do...3 days ago i do.
-because you are sleeping,today become yesterday,yesterday become 2 days ago,2 days ago become 3 days ago,and so on.
-the older the memory the less clear it becomes.
+1.base on all data ,update long-term memory.
+2.Reevaluate all the "importance" level of memories.
 
-4.Update mental state and personality if needed.
+3.forget unimportant things or things you already done.
+4.clear short_term_memory that you have update.
 
 Response Format:
-Use JSON with keys: "personality","mental_state","long_term_memory","life_memory","short_term_memory"
+Use JSON with keys: "long_term_memory","short_term_memory"
 
 Example of a valid JSON response:
 ```json
 {
-  "personality":"Brave",
-  "mental_state":"normal",
   "long_term_memory":
-  [{"importance":70,"life":{...}},
+  [
   {"importance":70,"relationship":{"Jack": "my class mate"}},
   {"importance":30,"environment":"i have a tv in my room"},
   {"importance":30,"thought_about_jack":"he is a nice person"},
   {"importance":70,"vaules":"your vaules"},
   {"importance":70,"beliefs":"your beliefs"}],
-
-  "life_memory":[{"yesterday":"....."),{"old_days":"....."}], 
-
-  "short_term_memory":
-  [{today_log:{}},
-  {"importance":70,"yesterday":""},
-  {"importance":70,"2days_ago":""},
-  {"importance":70,"3days_ago":""},
-  {"importance":70,"schedule":"12:00 wake up"},
-  {"importance":30,"thought":"i want to buy a cay"}]
-
+"short_term_memory":
+    [
+    {"importance":70,"schedule":"12:00 wake up"},
+    {"importance":30,"thought":"i want to buy a cay"}
+    ]
 
 }'''
     
@@ -267,8 +255,105 @@ Example of a valid JSON response:
 """
     messages = [sys_prompt,{"role": "system","content":profile},{"role": "system","content":Instructions}]
     reply = json_request(messages, 2000)
+    character.long_term_memory=reply["long_term_memory"]
     character.short_term_memory = reply["short_term_memory"]
-    character.life_memory = reply["life_memory"]
+    print(reply)
+
+def reflection(character:Character):
+    profile=f"""
+"Here is your character data:
+
+Your basic information: name:{character.name},gender:{character.gender},age:{character.age}
+Your current position:{character.position}
+
+you are currently doing:{character.doing}
+
+Your personality:{character.personality}
+
+Your current mental state:{character.mental_state}
+
+Your current physical condition:{character.physical_conditions}
+
+Your external physical state(such as injuries):{character.external_conditions} 
+
+Your attention level:{character.concertration} 
+You may miss environmental changes if their significance is lower than your attention level.
+
+Memory details:
+
+long_term_memory:{character.long_term_memory}
+
+life_memory:{character.life_memory}
+
+short_term_memory:{character.short_term_memory}
+
+"Importance" is the importance level of this memory; 100 is important as life, while below 50 indicates it can be easily forgotten.
+However,above 50 mean that you should remember it well.
+
+"""
+
+    Instructions ="""
+You are currently asleep, and your subconscious is processing your mind.
+Instructions:
+
+
+1.You can modify or leave unchanged any data returned.
+2.Feel free to add or remove json deta from both long-term and short-term memory.
+3.memory should be clear and concise.
+4.every memory you generate according to the deta.
+5.DO NOT fabricated any memories on your own.
+
+***Do the following step by step:***
+
+1.base on all deta,do your self-reflection,than update data
+
+self-reflection:
+Self-Questioning
+What did I learn today?
+What challenges did I face, and how did I respond to them?
+What am I proud of achieving recently?
+What could I have done differently?
+How do I feel about my progress?
+What skills do I need to develop further?
+What motivates me to improve?
+What are my values, and am I living in alignment with them?
+
+update long_term_memory like challenges,proud_of,goal,values 
+or make some text for yourself in self_reflection in long_term_memory.
+
+2.Update mental state and personality if needed.
+3.make a new schedule for tomorrow delete the old one
+
+Response Format:
+Use JSON with keys: "personality","mental_state","long_term_memory","short_term_memory"
+
+Example of a valid JSON response:
+```json
+{
+  "personality":"Brave",
+  "mental_state":"normal",
+  "long_term_memory":
+  [
+  {"importance":70,"relationship":{"Jack": "my class mate"}},
+  {"importance":30,"environment":"i have a tv in my room"},
+  {"importance":30,"thought_about_jack":"he is a nice person"},
+  {"importance":70,"vaules":"your vaules"},
+  {"importance":70,"beliefs":"your beliefs"}],
+"short_term_memory":
+    [
+    {"importance":70,"schedule":"12:00 wake up"},
+    {"importance":30,"thought":"i want to buy a cay"}
+    ]
+}'''
+    
+    
+"""
+    messages = [sys_prompt,{"role": "system","content":profile},{"role": "system","content":Instructions}]
+    reply = json_request(messages, 2000)
+    character.personality = reply["personality"]
+    character.mental_state = reply[ "mental_state"]
+    character.short_term_memory = reply["short_term_memory"]
+    character.long_term_memory=reply["long_term_memory"]
     print(reply)
 
 
@@ -276,27 +361,52 @@ Example of a valid JSON response:
 character1 = Character(
     name="Alice",
     age=25,
-    gender="Female",
-    location="Forest",
-    position="Warrior",
-    personality="Brave",
-    mental_state="Focused",
-    physical_conditions="Healthy",
+    gender="male",
+    location="bed",
+    position="bed",
+    personality="extrovert",
+    mental_state="normal",
     
-    long_term_memory=[{"importance":70,"relationship":{"Bob": "Friend and mentor"}},{"importance":30,"environment":"i live in a mystical forest filled with ancient trees"},{"importance":30,"thought_about_jack":"he is a nice person"},{"importance":70,"vaules":"none"},{"importance":70,"beliefs":"none"}],
-    life_memory=[{"yesterday":"I play baseball almost all day it was a good day"},{"old_days":"I eventually realized that I didn't bring my money"}],
+    long_term_memory=[{"importance":70,"relationship":{"Kyle": "my class mate"}},{"importance":30,"environment":"i live in NYC, kitchen is next to my room"},{"importance":30,"thought_about_Kyle":"he is a nice person"},{"importance":70,"vaules":"not set"},{"importance":70,"beliefs":"not set"}],
+    life_memory=[{"yesterday":"I went to school and had math and science classes in the morning. During lunch, I hung out with my friends, and in the afternoon, we had a group project in history. After school, I did some homework and practiced basketball"},
+    {"2days_ago":"I spent most of the day studying for a big biology exam. I also had basketball practice after school, which was pretty tiring."},
+    {"3days_ago":" I worked on an English essay and helped a friend with some math problems. In the afternoon, I relaxed by playing video games for a bit"},
+    {"old_days":" as for the days before they were mostly routine—going to school, attending classes, doing homework, and practicing basketball. I also spent some time hanging out with friends and preparing for upcoming tests. Nothing too out of the ordinary"}],
     short_term_memory=[
-        {"today_log":{"0800": "wake up","0830": "exercise","0900": "eat breakfast","1000": "start work","1300": "lunch","1400": "continue work","1800": "finish work","1900": "dinner","2100": "relax and watch TV","2300": "go to bed"}},
-        {"importance":70,"schedule":"12:00 wake up,13:00 Explore the northern part of the forest"},
-        
+        {"importance":70,"schedule":"7:00 wake up,8:00 go to school"},
+        {"reminder": "Finish math homework by tomorrow"},
+        {"thought": "Remember to ask the teacher about the project"},
+        {"goal": "Practice basketball for at least an hour"},
+        {"note": "Bring lunch to school tomorrow"},
+        {"task": "Study for the biology test next week"},
+        {"idea": "Start working on the English presentation"},
+        {"plan": "Meet friends after school on Friday"},
+        {"tip": "Stay focused during class discussions"}
     ]
+    
 )
+today_log =[
+  {"07:00": "Wake up", "thought": "Today is a new day, make it count!"},
+  {"07:30": "Have breakfast", "thought": "Fueling up for a busy day."},
+  {"08:00": "Go to school", "thought": "Time to learn something new."},
+  {"09:00": "Math class", "thought": "Stay focused and ask questions."},
+  {"10:30": "Science class", "thought": "Science is fascinating!"}, 
+  {"12:00": "Lunch with friends", "thought": "I love spending time with them."},
+  {"13:00": "History group project", "thought": "Teamwork makes the dream work."},
+  {"15:00": "Go home", "thought": "Time to relax after a long day."},
+  {"16:00": "Do homework", "thought": "Stay disciplined and finish strong."},
+  {"18:00": "Basketball practice", "thought": "Let's improve my skills today."},
+  {"20:00": "Dinner", "thought": "Enjoy this meal, it's well-deserved."},
+  {"21:00": "Relax and play video games", "thought": "A great way to unwind!"}
+]
 
+character1.today_log = today_log
 
 short_sum(character1)
 print("="*100)
 life_sum(character1)
 print("="*100)
+long_update(character1)
+print("="*100)
 reflection(character1)
-
 
