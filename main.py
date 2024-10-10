@@ -89,16 +89,16 @@ Instructions:
 1.You can modify or leave unchanged any data returned.
 2.Feel free to add or remove json deta from short-term memory.
 3.memory should be clear and concise.
-4.every memory you generate according to the deta.
-5.DO NOT fabricated any memories on your own.
-6.DO NOT generate new schedule.
+4.every memory you generate according to the deta,DO NOT fabricated any memories on your own.
+5.DO NOT generate new schedule.
 
 ***Do the following step by step:***
 
 
 1.Summarize today_log to a paragraph like:today_sum:"it was a good day" with details and short_term_memory.
-2.Summarize relative short_term_memory.
+2.Summarize relative memory to some text for yourself.
 3.delete unimportant memories or memories that you already done.
+4.clear the schedule.
 
 Response Format:
 Use JSON with keys: "short_term_memory","today_sum"
@@ -108,7 +108,7 @@ Example of a valid JSON response:
 {
     "short_term_memory":
     [
-    {"schedule":"7:00 wake up,8:00 eat breakfast,9:00 go to school"},
+    {"schedule":""},
     {"thought":"i want to buy a cay"}
     ],
     "today_sum":"it was a good day"
@@ -213,9 +213,9 @@ Instructions:
 1.You can modify or leave unchanged any data returned.
 2.Feel free to add or remove json deta from both long-term and short-term memory.
 3.memory should be clear and concise.
-4.every memory you generate according to the deta.
-5.DO NOT fabricated any memories on your own.
-6.DO NOT update schedule to long-term memory.
+4.every memory you generate according to the data,DO NOT fabricated any memories on your own.
+5.you can add key to any memory if need,like {"thought":"i want to buy a cay","note":"do not forget"}
+6.DO NOT update schedule.
 7.DO NOT update life_memory to long-term memory.
 
 ***Do the following step by step:***
@@ -268,7 +268,7 @@ Your current mental state:{character.mental_state}
 
 Your current physical condition:{character.physical_conditions}
 
-Your external physical state(such as injuries):{character.external_conditions} 
+Your external external conditions(such as injuries):{character.external_conditions} 
 
 Your attention level:{character.concertration} 
 You may miss environmental changes if their significance is lower than your attention level.
@@ -293,8 +293,8 @@ Instructions:
 1.You can modify or leave unchanged any data returned.
 2.Feel free to add or remove json deta from both long-term and short-term memory.
 3.memory should be clear and concise.
-4.every memory you generate according to the deta.
-5.DO NOT fabricated any memories on your own.
+4.every memory you generate according to the deta,DO NOT fabricated any memories on your own.
+5.you can add key to any memory if need,like {"thought":"i want to buy a cay","note":"do not forget"}
 
 ***Do the following step by step:***
 
@@ -313,7 +313,8 @@ What are my values, and am I living in alignment with them?
 
 after self-reflection,
 update long_term_memory like challenges,proud_of,goal,values,and so on.
-update "self" about what person you are in long_term_memory helping you get to know yourself better.
+update "self" about what a person you are in long_term_memory helping you get to know yourself better.
+
 
 2.Update mental state and personality if needed.
 3.make a new schedule for tomorrow,and delete the old one.
