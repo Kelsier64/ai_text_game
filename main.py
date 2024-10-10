@@ -41,17 +41,17 @@ def str_request(messages, max_tokens):
     except:
         return "error"
     
-
 class Environment:
     def __init__(self,name,description,time:datetime):
         self.name = name
         self.description = description
-        self.time = time
+        self.time = time.strftime("%H:%M")
+        self.date = time.strftime("%m/%d %A")
         self.weather = ""
         self.temperature = 25
         self.objects = []
     def __str__(self):
-        return f"environment:{self.name},description:{self.description},time:{self.time.strftime("%H:%M")},date:{self.time.strftime("%m/%d %A")}"
+        return f"environment:{self.name},description:{self.description},time:{self.time},date:{self.date}"
 
 class Item:
     def __init__(self,name,location,description):
@@ -60,7 +60,6 @@ class Item:
         self.description = description
     def __str__(self):
         return f"name:{self.name},description:{self.description}"
-
 
 
 
@@ -114,19 +113,19 @@ bed = Item(name="bed",location=(0,0),description="Alice's bed")
 table = Item(name="table",location=(3,3),description="Alice's table")
 chair = Item(name="chair",location=(3,4),description="Alice's chair")
 
-room = Environment(name="room",description="Alice's room",time=datetime.now())
+room = Environment(name="room",description="Alice's room",time=datetime(2024,10,12,8,0,0))
+
 room.objects = [tv,bed,table,chair]
 
 
 
 role.short_sum(character1)
-print("="*100)
-role.life_sum(character1)
-print("="*100)
-role.long_update(character1)
-print("="*100)
-role.reflection(character1)
-print("="*100)
 
-role.next(character1,room)
+role.life_sum(character1)
+
+role.long_update(character1)
+
+role.reflection(character1)
+
+role.perception(character1,room,"you wake up")
 

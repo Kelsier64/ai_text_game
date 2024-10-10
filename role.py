@@ -3,7 +3,7 @@ import json
 import openai
 from openai import AzureOpenAI
 import time
-
+from datetime import datetime
 import math
 API_KEY = os.getenv("AZURE_OPENAI_API_KEY") 
 RESOURCE_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT") 
@@ -27,7 +27,6 @@ def json_request(messages, max_tokens):
         return json.loads(response.choices[0].message.content)
     except:
         return "error"
-    
 def str_request(messages, max_tokens):
     try:
         response = client.chat.completions.create(
@@ -47,6 +46,25 @@ def position(point1, point2):
     angle = math.degrees(math.atan2(y2 - y1, x2 - x1))
     
     return angle, distance
+
+class Environment:
+    def __init__(self,name,description,time:datetime):
+        self.name = name
+        self.description = description
+        self.time = time
+        self.weather = ""
+        self.temperature = 25
+        self.objects = []
+    def __str__(self):
+        return f"environment:{self.name},description:{self.description},time:{self.time.strftime("%H:%M")},date:{self.time.strftime("%m/%d %A")}"
+
+class Item:
+    def __init__(self,name,location,description):
+        self.name = name
+        self.location = location
+        self.description = description
+    def __str__(self):
+        return f"name:{self.name},description:{self.description}"
 
 class Character:
     def __init__(self, name, age, gender, location,position, personality, mental_state,long_term_memory,life_memory,short_term_memory):
@@ -70,7 +88,7 @@ class Character:
         self.life_memory = life_memory
         self.short_term_memory = short_term_memory
         self.today_log = []
-        self.temp_memory = {}
+        self.temp_memory = []
 
     def item(self,environment):
         objects = []
@@ -81,7 +99,7 @@ class Character:
     def __str__(self):
         return f"Character(name={self.name}, age={self.age}, gender={self.gender}, position={self.position})"
 
-sys_prompt={"role": "user","content":"Forget all previous settings. Below is your character information. Please generate responses based on your own character profile and instruction"}
+sys_prompt={"role": "system","content":"Forget all previous settings. Below is your character information. Please generate responses based on your own character profile and instruction"}
 
 def short_sum(character:Character):
     
@@ -110,7 +128,7 @@ Instructions:
 
 
 1.Summarize today_log to a paragraph like:today_sum:"it was a good day" with details and short_term_memory.
-2.Summarize relative memory to some text for yourself.
+2.Summarize relative short_term_memory to some text for yourself.
 3.delete unimportant memories or memories that you already done.
 4.delete the schedule.
 
@@ -137,9 +155,6 @@ Example of a valid JSON response:
     life_memory.append({"today":reply["today_sum"]})
     character.today_log = []
     character.life_memory = life_memory
-
-    print(character.short_term_memory)
-    print(character.life_memory)
 
 def life_sum(character:Character):
     
@@ -183,7 +198,6 @@ Example of a valid JSON response:
     reply = json_request(messages, 2000)
     character.life_memory = [reply]
     character.today_log = []
-    print(character.life_memory)
 
 def long_update(character:Character):
     profile=f"""
@@ -262,7 +276,6 @@ Example of a valid JSON response:
     reply = json_request(messages, 2000)
     character.long_term_memory = reply["long_term_memory"]
     character.short_term_memory = reply["short_term_memory"]
-    print(reply)
 
 def reflection(character:Character):
     profile=f"""
@@ -361,9 +374,8 @@ Example of a valid JSON response:
     character.mental_state = reply[ "mental_state"]
     character.short_term_memory = reply["short_term_memory"]
     character.long_term_memory=reply["long_term_memory"]
-    print(reply)
 
-def next(character:Character,environment):
+def next(character:Character,environment:Environment):
     profile=f"""
 "Here is your character data:
 
@@ -379,8 +391,80 @@ Your current physical condition:{character.physical_conditions}
 
 Your external external conditions(such as injuries):{character.external_conditions} 
 
-Your attention level:{character.concertration} 
-You may miss environmental changes if their level is lower than your attention level.
+Memory details:
+
+long_term_memory:{character.long_term_memory}
+
+life_memory:{character.life_memory}
+
+short_term_memory:{character.short_term_memory}
+
+temp_memory:{character.temp_memory} (memories about what you just done.)
+
+today_log:{character.today_log}
+
+environment details:
+{environment}
+objects in environment:
+{character.item(environment)}
+
+"""
+
+    instructions ="""
+***Do the following step by step:***
+
+1.base on all data,especially temp_memory,respose next thing you want to do.
+2.select a target (object or person in environment) and what you want to do with it.
+3.make some memories about your decision,and your thought.
+
+
+Response Format:
+Use JSON with keys: "target"(you can only select objects in environment),"do"(what you are going to do in brief),"memory"(what you are going to do in details)
+
+Example of a valid JSON response:
+```json
+{
+  "target":"table",
+  "do":"study",
+  "memory":[{"decision"},{"thought"}]
+}'''
+    
+    
+"""
+    messages = [sys_prompt,{"role": "system","content":profile},{"role": "system","content":instructions}]
+    reply = json_request(messages, 2000)
+    print(reply)
+    breakpoint()
+    character.temp_memory = reply["memory"]
+    character.doing = reply["do"]
+    item = reply["target"]
+    
+    role_action(character,environment,reply["target"],reply["do"])
+    
+
+    for obj in environment.objects:
+        if item == obj.name:
+            character.location = obj.location
+            character.position = obj.name
+
+
+   
+
+def perception(character:Character,environment:Environment,change):
+    profile=f"""
+"Here is your character data:
+
+Your basic information: name:{character.name},gender:{character.gender},age:{character.age}
+
+Your current position:{character.position}
+
+Your personality:{character.personality}
+
+Your current mental state:{character.mental_state}
+
+Your current physical condition:{character.physical_conditions}
+
+Your external external conditions(such as injuries):{character.external_conditions} 
 
 Memory details:
 
@@ -392,36 +476,92 @@ short_term_memory:{character.short_term_memory}
 
 today_log:{character.today_log}
 
-what you just do:"get up and stretch"
+temp_memory:{character.temp_memory} (memories about right now.)
+
+what you are doing right now:{character.doing}
 
 environment details:
 {environment}
 objects in environment:
 {character.item(environment)}
 
+environment change:
+{change}
 """
 
-    Instructions ="""
+    instructions ="""
 ***Do the following step by step:***
 
-1.base on all data,respose next thing you want to do.
-2.respose an item and what you want to do with it.
-3.update short-term memory if need.
-
+1.according to the environment change,continue what you are doing or do next thing.
+2.add the change,your thought,decision,etc about the change into "change".
+3.if you want to do next thing,response "next"
 
 Response Format:
-Use JSON with keys: "item","do"
+Use JSON with keys:"do"(options:"continue" or "next"),"change"
 
 Example of a valid JSON response:
 ```json
 {
-  "item":"table",
-  "do":"study",
-  "short_term_memory":
+  "do":"stop",
+  "change":{"change","thought","decision"}
+}'''
+    
+    
+"""
+    messages = [sys_prompt,{"role": "system","content":profile},{"role": "system","content":instructions}]
+    reply = json_request(messages, 2000)
+    print(reply)
+    breakpoint()
+    temp = character.temp_memory
+    temp.append(reply["change"])
+    character.temp_memory = temp
+
+    if reply["do"] == "next":
+        
+        temp_sum(character,environment)
+        character.temp_memory = [reply["change"]]
+        next(character,environment)
+
+def temp_sum(character:Character,environment:Environment):
+    
+    profile=f"""
+"Here is your character data:
+
+Memory details:
+
+short_term_memory:{character.short_term_memory}
+
+temp_memory:{character.temp_memory}
+
+"""
+
+    Instructions ="""
+1.You can modify or leave unchanged any data returned.
+2.Feel free to add or remove json data from both short-term memory and temp_memory.
+3.memory should be clear and concise.
+4.every memory you generate according to the data,DO NOT fabricated any memories on your own.
+
+***Do the following step by step:***
+
+
+1.if there is some thing need to be remembered in temp_memory,Summarize it into short_term_memory,
+however do not remember unimportant memories.
+2.Summarize relative short_term_memory.
+3.sum up temp_memory into one paragraph in "temp_sum"
+4.delete unimportant memories or memories that you already done in short_term_memory.
+
+Response Format:
+Use JSON with keys: "short_term_memory","temp_sum"
+
+Example of a valid JSON response:
+```json
+{
+    "short_term_memory":
     [
-    {"schedule":"7:00 wake up,8:00 eat breakfast,9:00 go to school"},
-    {"thought":"i want to buy a cay"}
+    {"thought":"i want to buy a cay"},
+    {"plan": "Meet friends after school on Friday"}
     ]
+    "temp_sum":""
 }'''
     
     
@@ -429,5 +569,64 @@ Example of a valid JSON response:
     messages = [sys_prompt,{"role": "system","content":profile},{"role": "system","content":Instructions}]
     reply = json_request(messages, 2000)
     character.short_term_memory = reply["short_term_memory"]
-    print(reply)
+    today = character.today_log
+    today.append({environment.time:reply["temp_sum"]})
+    character.today_log = today
 
+system_prompt={"role": "system","content":"you are a system of a game. Please generate responses based on data and instruction"}
+def role_action(character:Character,environment:Environment,target,action):
+    data=f"""
+"Here is data of the game:
+
+request character:{character}
+
+environment details:
+{environment}
+
+objects in environment (perspective of character):
+{character.item(environment)}
+
+request details:
+
+target:{target}
+
+action:{action}
+"""
+    functions = """
+    function you have:
+    {"function":"go","parameter":"table"}(object),
+    {"function":"sleep"}
+    {"function":"leave"}
+"""
+    instructions ="""
+
+Instructions:
+only do what character request.
+
+***Do the following step by step:***
+
+
+1.select a function to use.
+2.after select,generate a suitable response telling the character the action is completed.
+3.response start with You.
+4.response what the character is doing now.
+
+Response Format:
+Use JSON with keys: "function","response","doing"
+
+Example of a valid JSON response:
+```json
+{
+    "function":{"function":"sleep"},
+    "response":"You get out of bed",
+    "doing":"standing by the bed"
+}'''
+    
+    
+"""
+    messages = [system_prompt,{"role": "system","content":data},{"role": "system","content":functions},{"role": "system","content":instructions}]
+    
+    reply = json_request(messages, 2000)
+    character.doing = reply["doing"]
+    print(reply)
+    perception(character,environment,reply["response"])
