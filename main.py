@@ -6,14 +6,17 @@ import time
 import role
 from role import Character
 from datetime import datetime
+from dotenv import load_dotenv
+load_dotenv()
 API_KEY = os.getenv("AZURE_OPENAI_API_KEY") 
 RESOURCE_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT") 
 deployment_name = "gpt4o"
 
+
 client = AzureOpenAI(
-  api_key = os.getenv("AZURE_OPENAI_API_KEY"),  
+  api_key = API_KEY,  
   api_version = "2024-09-01-preview",
-  azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+  azure_endpoint = RESOURCE_ENDPOINT
 )
 
 def json_request(messages, max_tokens):

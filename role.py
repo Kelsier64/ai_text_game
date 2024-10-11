@@ -5,14 +5,16 @@ from openai import AzureOpenAI
 import time
 from datetime import datetime
 import math
+from dotenv import load_dotenv
+load_dotenv()
 API_KEY = os.getenv("AZURE_OPENAI_API_KEY") 
 RESOURCE_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT") 
 deployment_name = "gpt4o"
 
 client = AzureOpenAI(
-  api_key = os.getenv("AZURE_OPENAI_API_KEY"),  
+  api_key = API_KEY,  
   api_version = "2024-09-01-preview",
-  azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+  azure_endpoint = RESOURCE_ENDPOINT
 )
 
 def json_request(messages, max_tokens):
@@ -89,6 +91,11 @@ class Character:
         self.short_term_memory = short_term_memory
         self.today_log = []
         self.temp_memory = []
+    def go(self,environment,item):
+        self.position = item
+        for i in environment.objects:
+            if i.name == item:
+                self.location = i.location
 
     def item(self,environment):
         objects = []
@@ -595,7 +602,7 @@ action:{action}
     functions = """
     function you have:
     {"function":"go","parameter":"table"}(object),
-    {"function":"sleep"}
+    {"function":"sleep"},
     {"function":"leave"}
 """
     instructions ="""
@@ -625,8 +632,10 @@ Example of a valid JSON response:
     
 """
     messages = [system_prompt,{"role": "system","content":data},{"role": "system","content":functions},{"role": "system","content":instructions}]
-    
     reply = json_request(messages, 2000)
+    if reply["function"]["function"] == "go":
+        character.go(environment,reply["function"]["parameter"])
+
     character.doing = reply["doing"]
     print(reply)
     perception(character,environment,reply["response"])
