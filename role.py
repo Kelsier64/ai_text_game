@@ -490,7 +490,7 @@ Example of a valid JSON response for person:
     reply["memory"]["event"] = change
     character.temp_memory.append(reply["memory"])
     character.temp_memory.append({"I_say":reply["message"]})
-
+    breakpoint()
     for item in character.environment.objects:
         if item.name == reply["target"]: 
             if reply["action"] == "continue":
@@ -624,9 +624,8 @@ Example of a valid JSON response:
         character.enter(target)
                 
     character.doing = reply["doing"]
-    print(action+"/"+character.__str__()+","+character.environment.name)
-    print(reply)
-    breakpoint()
+    print(character.environment.name,","+action+","+character.__str__())
+
     perception(character,reply["message"])
 
 def role_interaction(character:Character,target,message,do,action):
@@ -682,8 +681,8 @@ Example of a valid JSON response:
     messages = [system_prompt,{"role": "system","content":data},{"role": "system","content":instructions}]
     reply = json_request(messages, 2000)
     character.doing = reply["requester_doing"]
-    print(character.__str__()+","+character.environment.name+":"+message)
-    breakpoint()
+    print(character.environment.name+","+character.__str__()+" to "+target+":"+message)
+
     for person in character.environment.roles:
         if person.name == reply["target"]:
             person.doing=reply["target_doing"]
@@ -765,7 +764,7 @@ Example of a valid JSON response:
     reply["memory"]["event"] = change
     character.temp_memory.append(reply["memory"])
     character.temp_memory.append({"I_said":reply["message"]})
-
+    breakpoint()
     if reply["interaction"] == "next":
 
         perception(character,"you end the conversation to do next thing")
