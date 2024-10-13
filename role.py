@@ -125,7 +125,7 @@ class Character:
         people = []
         for person in self.environment.roles:
             angle, distance = position(self.location,person.location)
-            people.append({"name":person.name,"description":person.doing,"position":f"{int(angle)}degrees/{int(distance)}metters"})
+            people.append({"name":person.name,"activity":person.doing,"position":f"{int(angle)}degrees/{int(distance)}metters"})
         return people
 
     def __str__(self):
