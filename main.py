@@ -4,7 +4,7 @@ import openai
 from openai import AzureOpenAI
 import time
 import role
-from role import Character,Environment,Item
+from role import Character,Environment,Item,Gate
 from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
@@ -51,11 +51,16 @@ tv = Item(name="tv",location=(12,0),description="an old tv")
 bed = Item(name="bed",location=(0,0),description="Alice's bed")
 table = Item(name="table",location=(3,3),description="Alice's table")
 chair = Item(name="chair",location=(3,4),description="Alice's chair")
+microwave = Item(name="microwave",location=(5,5),description="")
+fridge = Item(name="fridge",location=(5,6),description="")
 
 room = Environment(name="room",description="Alice's room",t=datetime(2024,10,12,8,0,0))
+living_room = Environment(name="living_room",description="living_room",t=datetime(2024,10,12,8,0,0))
 
-room.objects = [tv,bed,table,chair]
+door = Gate(name="door",location=(5,5),description="door of Alice's room",connection=[room,living_room])
 
+room.objects = [tv,bed,table,chair,door]
+living_room.objects = [tv,microwave,fridge,table,chair,door]
 
 character1 = Character(
     name="Alice",
@@ -67,7 +72,7 @@ character1 = Character(
     personality="extrovert",
     mental_state="normal",
     
-    long_term_memory=[{"relationship":{"Emily": "my girlfriend"}},{"environment":"i live in NYC, kitchen is next to my room"},{"thought_about_Emily":"she is a nice person"},{"vaules":"not set"},{"beliefs":"not set"}],
+    long_term_memory=[{"relationship":{"Emily": "my girlfriend"}},{"environment":"i live in NYC, kitchen is next to my room"},{"thought_about_Emily":"she is a nice person"},{"vaules":"not set"},{"beliefs":"not set"},{"routine":"go to living room and make breakfast"}],
     life_memory=[{"yesterday":"I went to school and had math and science classes in the morning. During lunch, I hung out with my friends, and in the afternoon, we had a group project in history. After school, I did some homework and practiced basketball"},
     {"2days_ago":"I spent most of the day studying for a big biology exam. I also had basketball practice after school, which was pretty tiring."},
     {"3days_ago":" I worked on an English essay and helped a friend with some math problems. In the afternoon, I relaxed by playing video games for a bit"},
@@ -144,15 +149,17 @@ character2.today_log = today_log2
 
 room.roles = [character1,character2]
 
-role.short_sum(character1)
-role.life_sum(character1)
-role.long_update(character1)
-role.reflection(character1)
+# role.short_sum(character1)
+# role.life_sum(character1)
+# role.long_update(character1)
+# role.reflection(character1)
 
 role.short_sum(character2)
 role.life_sum(character2)
 role.long_update(character2)
 role.reflection(character2)
-
-role.perception(character1,"you wake up")
+print(character2.long_term_memory)
+print(character2.short_term_memory)
+print(character2.life_memory)
+# role.perception(character1,"you wake up")
 

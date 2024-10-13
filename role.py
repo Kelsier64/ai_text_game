@@ -71,6 +71,15 @@ class Item:
     def __str__(self):
         return f"name:{self.name},description:{self.description}"
 
+class Gate:
+    def __init__(self,name,location,description,connection):
+        self.name = name
+        self.location = location
+        self.description = description
+        self.connection = connection
+    def __str__(self):
+        return f"name:{self.name},description:{self.description},connection:{self.connection[0].name} and {self.connection[1].name}"
+
 class Character:
     def __init__(self, name, age, gender,environment:Environment, location,position, personality, mental_state,long_term_memory,life_memory,short_term_memory):
         self.name = name
@@ -97,17 +106,21 @@ class Character:
         self.temp_memory = []
 
     def go(self,item):
-        self.position = item
-        for i in self.environment.objects:
-            if i.name == item:
-                self.location = i.location
-
-    def item(self):
+        self.position = item.name
+        self.location = item.location
+    def enter(self,target):
+        if self.environment == target.connection[0]:
+            self.environment = target.connection[1]
+        elif self.environment == target.connection[1]:
+            self.environment = target.connection[0]
+            
+    def objects(self):
         objects = []
         for item in self.environment.objects:
             angle, distance = position(self.location,item.location)
-            objects.append({"name":item.name,"description":item.description,"position":f"{int(angle)}degrees/{int(distance)}metters"})
+            objects.append({"object":item.__str__(),"position":f"{int(angle)}degrees/{int(distance)}metters"})
         return objects
+    
     def people(self):
         people = []
         for person in self.environment.roles:
@@ -395,70 +408,63 @@ Example of a valid JSON response:
     character.short_term_memory = reply["short_term_memory"]
     character.long_term_memory=reply["long_term_memory"]
 
+perception_prompt={"role": "system","content":"Forget all previous settings.select the next thing you want to do based on your character data following"}
+
 def perception(character:Character,change):
     profile=f"""
-"Here is your character data:
+Here is your character's data:
 
-Your basic information: name:{character.name},gender:{character.gender},age:{character.age}
+Basic Information:
+- Name: {character.name}
+- Gender: {character.gender}
+- Age: {character.age}
 
-Your current position:{character.position}
+Current Status:
+- Position: {character.position}
+- Activity: {character.doing}
 
-you are currently doing:{character.doing}
+Personality and State:
+- Personality: {character.personality}
+- Mental State: {character.mental_state}
+- Physical Condition: {character.physical_conditions}
+- External Conditions (e.g., injuries): {character.external_conditions}
 
-Your personality:{character.personality}
+Memory Details:
+- Long-term Memory: {character.long_term_memory}
+- Life Memory: {character.life_memory}
+- Short-term Memory: {character.short_term_memory}
+- Today's Log: {character.today_log}
 
-Your current mental state:{character.mental_state}
-
-Your current physical condition:{character.physical_conditions}
-
-Your external external conditions(such as injuries):{character.external_conditions} 
-
-Memory details:
-
-long_term_memory:{character.long_term_memory}
-
-life_memory:{character.life_memory}
-
-short_term_memory:{character.short_term_memory}
-
-today_log:{character.today_log}
-
-temp_memory:{character.temp_memory} (memories about right now.)
-
-environment details:
-{character.environment}
-objects in environment:
-{character.item()}
-environment change:
-{change}
-
-people in this environment:
-{character.people()}
-
+Environment:
+- Description: {character.environment}
+- Objects: {character.objects()}
+- People: {character.people()}
 """
-
+    
+    now = f"""
+    memories right now(temp_memory):{character.temp_memory}
+    new event:{change}
+"""
     instructions ="""
 Instructions:
 1.generate every thing in first-person.
 
 ***Do the following step by step:***
 
-1.base on all data,especially temp_memory and environment change,respond next thing you want to do in the next huor.
-2.select a target (object or person in environment) and what you want to do with it in the next huor.
-3.to do it,make an action.
-4.if you and the object or person selected are not in the same position,the first action you need to do is to walk toward it.
-5.make some memories about the event(the change),your decision,and your thought.
-6.make a message,if the target is a person,it will be said to him,
-if the target is an object,it is your murmur;however it can be blank.
-
+1.base on all data,especially temp_memory and new event,select a target (object or person in environment) and decide what you want to do with it.
+2.to do it,make an action.
+3.If you and the selected object or person are not in the same position, your first action should be to walk toward them.
+4.Make some memories about your decision, thoughts on the new event, etc.
+5.Create a message. If the target is a person, the message will be said to them. If the target is an object, it’s your murmur; however, it can also be left blank.
+6.If you’ve just ended a conversation, do not target the same person. Move on to something else.
 
 
 Use JSON with keys: 
-"target"(you can only select object or person in environment),"do"(what you are going to do in brief),"memory"(what you are going to do in details),"message"
+"target"(you can only select object or person in environment),"do"(what you are going to do in brief),"action","memory"(what you are going to do in details),"message"
 
 Example of a valid JSON response for object:
-(if you want to continue what you are doing with the object,leave "continue" in key "action")
 
+if you want to continue what you are doing for a while,leave "continue" in key "action"(this only need to do on object)
 ```json
 {
   "target":"table",
@@ -477,29 +483,25 @@ Example of a valid JSON response for person:
   "memory":{"event":"","decision":"","thought":""},
   "message":"hi Jack."
 }'''
-
-
-    
-    
 """
 
-    messages = [sys_prompt,{"role": "system","content":profile},{"role": "system","content":instructions}]
+    messages = [perception_prompt,{"role": "system","content":profile},{"role": "system","content":now},{"role": "system","content":instructions}]
     reply = json_request(messages, 2000)
+    reply["memory"]["event"] = change
     character.temp_memory.append(reply["memory"])
     character.temp_memory.append({"I_say":reply["message"]})
-    print(character.__str__()+":"+reply["message"])
 
     for item in character.environment.objects:
-        if reply["action"] == "continue":
-            temp_sum(character)
-            character.temp_memory = [reply["memory"],{"I_say":reply["message"]}]
-        elif item.name == reply["target"]: 
-            item_interaction(character,reply["target"],reply["do"],reply["action"])
+        if item.name == reply["target"]: 
+            if reply["action"] == "continue":
+                temp_sum(character)
+                character.temp_memory = [reply["memory"],{"I_say":reply["message"]}]
+            else:
+                item_interaction(character,reply["target"],reply["do"],reply["action"])
 
     for role in character.environment.roles:
         if role.name == reply["target"]:
             role_interaction(character,reply["target"],reply["message"],reply["do"],reply["action"])
-
 
 def temp_sum(character:Character):
     
@@ -550,21 +552,22 @@ Example of a valid JSON response:
     character.short_term_memory = reply["short_term_memory"]
     character.today_log.append({character.environment.time:reply["temp_sum"]})
 
-
 system_prompt={"role": "system","content":"you are a system of a game. Please generate responses based on data and instruction"}
 
 def item_interaction(character:Character,target,do,action):
 
+    for i in character.environment.objects:
+        if i.name == target:
+            target = i
+            
     data=f"""
 "Here is data of the game:
-
-
 
 environment details:
 {character.environment}
 
 objects in environment (perspective of character):
-{character.item()}
+{character.objects()}
 
 people in this environment (perspective of character):
 {character.people()}
@@ -582,9 +585,11 @@ action:{action}
     
     functions = """
     function you have:
-    {"function":"goto","parameter":"table"}(object name),
+    {"function":"goto"}(ex:"doing":"study"),
     {"function":"sleep"},
+    {"function":"enter"}(ex:"message":"you enter the living room","doing":"stand by the door"),
     {"function":"pass"}
+   
 """
     instructions ="""
 Instructions:
@@ -602,7 +607,7 @@ Use JSON with keys: "execute","message","doing"
 Example of a valid JSON response:
 ```json
 {
-    "execute":{"function":"go","parameter":"table"},
+    "execute":{"function":"go"},
     "message":"you walk to the table and sit down",
     "doing":"study"
 }'''
@@ -612,10 +617,16 @@ Example of a valid JSON response:
     messages = [system_prompt,{"role": "system","content":data},{"role": "system","content":functions},{"role": "system","content":instructions}]
     reply = json_request(messages, 2000)
     if reply["execute"]["function"] == "goto":
-        character.go(reply["execute"]["parameter"])
-    
+        character.go(target)
+
+    if reply["execute"]["function"] == "enter":
+        character.go(target)
+        character.enter(target)
+                
     character.doing = reply["doing"]
+    print(action+"/"+character.__str__()+","+character.environment.name)
     print(reply)
+    breakpoint()
     perception(character,reply["message"])
 
 def role_interaction(character:Character,target,message,do,action):
@@ -627,7 +638,7 @@ environment details:
 {character.environment}
 
 objects in environment (perspective of character):
-{character.item()}
+{character.objects()}
 
 people in this environment (perspective of character):
 {character.people()}
@@ -652,7 +663,7 @@ only do what character request.
 ***Do the following step by step:***
 
 1.base on data,generate a message for target,conbine requester"s action,message,and other details.
-2.update what they are doing in brief(in third-person perspective).
+2.update what they are doing in very brief(in third-person perspective).
 
 Response Format:
 Use JSON with keys:"target","message","requester_doing","target_doing"
@@ -671,14 +682,95 @@ Example of a valid JSON response:
     messages = [system_prompt,{"role": "system","content":data},{"role": "system","content":instructions}]
     reply = json_request(messages, 2000)
     character.doing = reply["requester_doing"]
-
+    print(character.__str__()+","+character.environment.name+":"+message)
+    breakpoint()
     for person in character.environment.roles:
         if person.name == reply["target"]:
             person.doing=reply["target_doing"]
-            perception(person,reply["message"])
+            interaction(person,reply["message"],character)
 
-    
-    character.doing = reply["doing"]
-    print(reply)
-    perception(character,reply["message"])
+interaction_prompt={"role": "system","content":"Forget all previous settings.generate dialogue based on your character data following"}
 
+def interaction(character:Character,change,target):
+    profile=f"""
+Here is your character's data:
+
+Basic Information:
+- Name: {character.name}
+- Gender: {character.gender}
+- Age: {character.age}
+
+Current Status:
+- Position: {character.position}
+- Activity: {character.doing}
+
+Personality and State:
+- Personality: {character.personality}
+- Mental State: {character.mental_state}
+- Physical Condition: {character.physical_conditions}
+- External Conditions (e.g., injuries): {character.external_conditions}
+
+Memory Details:
+- Long-term Memory: {character.long_term_memory}
+- Life Memory: {character.life_memory}
+- Short-term Memory: {character.short_term_memory}
+- Today's Log: {character.today_log}
+
+Environment:
+- Description: {character.environment}
+- Objects: {character.objects()}
+- People: {character.people()}
+"""
+
+    conversation = f"""
+Interaction Details:
+- You are NOW interacting with: {target.name}
+- Memory of Previous Interaction (chat history): {character.temp_memory}
+- New Interaction Details: {change}
+"""
+
+
+    instructions = """
+Instructions:
+1.generate every memories in the first-person.
+
+***Do the following step by step:***
+1.Generate the words you want to say and actions towards the one you are interacting with, based on your data, especially chat history.
+2.You can only perform interactive actions; you CANNOT walk or move away.However, leave "next" in the key "interaction" to end the conversation in order to perform another action.
+3.Do not repeat the conversation; end it to do something else.
+4.make some memories about your thought,etc.
+
+Use JSON with keys: "interaction","message","memory"
+
+Example of a valid JSON response:
+```json
+{
+  "interaction":"walk toward Jack",
+  "message":"hi Jack.",
+  "memory":{"thought":""}
+}'''
+
+(leave "next" in key "interaction" to end the conversation to do another thing.)
+```json
+{
+  "interaction":"next",
+  "message":"bye Jack.",
+  "memory":{"thought":""}
+}'''
+
+"""
+
+    messages = [interaction_prompt,{"role": "system","content":profile},{"role": "system","content":conversation},{"role": "system","content":instructions}]
+    reply = json_request(messages, 2000)
+    reply["memory"]["event"] = change
+    character.temp_memory.append(reply["memory"])
+    character.temp_memory.append({"I_said":reply["message"]})
+
+    if reply["interaction"] == "next":
+
+        perception(character,"you end the conversation to do next thing")
+        perception(target,f"{reply["message"]} and {character.name} end the conversation")
+    else:
+        for role in character.environment.roles:
+            if role.name == target.name:
+                role_interaction(character,target.name,reply["message"],"interaction",reply["interaction"])
