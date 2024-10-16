@@ -1,5 +1,8 @@
 perception_sys="Forget all previous settings.select the next thing you want to do based on your character data following"
 
+system={"role": "system","content":"you are a system of a game. Please generate responses based on data and instruction"}
+
+
 perception = """
 Instructions:
 1.generate every thing in first-person.
@@ -37,5 +40,23 @@ Example of a valid JSON response for person:
   "action":"walk toward Jack",
   "memory":{"event":"","decision":"","thought":""},
   "message":"hi Jack."
+}'''
+"""
+
+item_instruction ="""
+Instructions:
+only do what character request.
+***Do the following step by step:***
+1.base on data,select an appropriate function to use.if no suitable function,respond with "execute":{"function":"pass"}
+2.whether you pass the function or not,generate a message telling the requester that his action has been completed (in the first-person perspective).
+3.update what the requester is doing now in brief(in third-person perspective).
+Response Format:
+Use JSON with keys: "execute","message","doing"
+Example of a valid JSON response:
+```json
+{
+    "execute":{"function":"go"},
+    "message":"you walk to the table and sit down",
+    "doing":"study"
 }'''
 """

@@ -562,48 +562,34 @@ def item_interaction(character:Character,target,do,action):
             
     data=f"""
 "Here is data of the game:
-
 environment details:
 {character.environment}
-
 objects in environment (perspective of character):
 {character.objects()}
-
 people in this environment (perspective of character):
 {character.people()}
-
 request character:{character}
-
 request details:
-
 target:{target}
-
 want to do:{do}
-
 action:{action}
 """
-    
     functions = """
     function you have:
     {"function":"goto"}(ex:"doing":"study"),
     {"function":"sleep"},
     {"function":"enter"}(ex:"message":"you enter the living room","doing":"stand by the door"),
     {"function":"pass"}
-   
 """
     instructions ="""
 Instructions:
 only do what character request.
-
 ***Do the following step by step:***
-
 1.base on data,select an appropriate function to use.if no suitable function,respond with "execute":{"function":"pass"}
 2.whether you pass the function or not,generate a message telling the requester that his action has been completed (in the first-person perspective).
 3.update what the requester is doing now in brief(in third-person perspective).
-
 Response Format:
 Use JSON with keys: "execute","message","doing"
-
 Example of a valid JSON response:
 ```json
 {
@@ -611,8 +597,6 @@ Example of a valid JSON response:
     "message":"you walk to the table and sit down",
     "doing":"study"
 }'''
-    
-    
 """
     messages = [system_prompt,{"role": "system","content":data},{"role": "system","content":functions},{"role": "system","content":instructions}]
     reply = json_request(messages, 2000)

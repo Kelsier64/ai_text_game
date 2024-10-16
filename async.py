@@ -137,6 +137,33 @@ class Environment(Describable):
         if character in self.characters:
             self.characters.remove(character)
 
+    async def item_interaction(self,character:'Character',request):
+        data=f"""
+"Here is data of the game:
+environment details:
+{self.get_description()}
+objects in environment (perspective of character):
+{character.get_objects_in_view()}
+people in this environment (perspective of character):
+{character.get_characters_in_view()}
+request character:{character.get_description()}
+request details:
+target:{request["target"]}
+want to do:{request["do"]}
+action:{request["action"]}
+"""
+        functions = """
+    function you have:
+    {"function":"goto"}(ex:"doing":"study"),
+    {"function":"sleep"},
+    {"function":"enter"}(ex:"message":"you enter the living room","doing":"stand by the door"),
+    {"function":"pass"}
+"""         
+        messages = [prompt.system,{"role": "system","content":data},{"role": "system","content":functions},{"role": "system","content":prompt.instruction}]
+        response = await json_request(messages)
+        return response
+       
+
     def get_description(self) -> str:
         return (f"Environment: {self.name}, Description: {self.description}, "
                 f"Weather: {self.weather}, Temperature: {self.temperature}°C")
@@ -150,6 +177,7 @@ class Character(Describable):
         self.gender = gender
         self.environment = environment
         self.position = position
+        self.location = ""
         self.hunger = 100
         self.concertration = 0
         self.facial_expression = "neutral"
@@ -237,35 +265,27 @@ short_term_memory:{self.short_term_memory}
                 f"Position: {self.position}, Doing: {self.doing}")
 
 
-# 創建時間管理器
+
 time_manager = TimeManager()
 
-# 創建兩個環境
 env1 = Environment("Forest", "A dense forest with fog.")
 env2 = Environment("Castle", "A large stone castle.")
 
-# 創建一個門，連接兩個環境
+
 gate = Gate("Main Gate", Position(50, 50), "The gate between forest and castle.", (env1, env2))
 
-# 創建一個物品
+
 sword = Item("Sword", Position(10, 10), "A sharp steel sword.")
 env1.add_object(sword)
 
-# 創建角色
+
 character1 = Character("Aragorn", 35, "Male", env1, Position(0, 0), "Brave", "Calm")
 character2 = Character("haha", 35, "Male", env1, Position(-2, -1), "Brave", "Calm")
-# 角色與物品互動
 
-re = asyncio.run(character1.perception("you woke up"))
-print(re)
 
-breakpoint()
-character1.interact_with_item(sword)
+# re = asyncio.run(character1.perception("you woke up"))
 
-# 角色穿過門進入另一個環境
-character1.go_through_gate(gate)
+asyncio.run(env1.item_interaction(character1,{"target":"","do":"","action":""}))
 
-print(character1.get_description())
-print(env2.get_description())
 
-breakpoint()
+
