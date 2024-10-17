@@ -51,11 +51,8 @@ class Position:
 class TimeManager:
     """Class to handle time globally or per character/environment."""
     
-    def __init__(self):
-        self.current_time = datetime.now()
-
-    def update_time(self, new_time: datetime):
-        self.current_time = new_time
+    def __init__(self,time: datetime):
+        self.current_time = time
 
     def get_time(self) -> str:
         return self.current_time.strftime("%H:%M")
@@ -120,11 +117,7 @@ class Environment(Describable):
         self.temperature = 25
         self.objects: List[WorldObject] = []
         self.characters: List['Character'] = []
-
         self.event_temp = []
-
-    def add_object(self, obj: WorldObject):
-        self.objects.append(obj)
 
     def add_character(self, character: 'Character'):
         """Add character to the environment and update character's environment."""
@@ -148,9 +141,9 @@ people in this environment (perspective of character):
 {character.get_characters_in_view()}
 request character:{character.get_description()}
 request details:
-target:{request["target"]}
-want to do:{request["do"]}
-action:{request["action"]}
+target:{request[0]}
+want to do:{request[1]}
+action:{request[2]}
 """
         functions = """
     function you have:
@@ -166,7 +159,7 @@ action:{request["action"]}
 
     def get_description(self) -> str:
         return (f"Environment: {self.name}, Description: {self.description}, "
-                f"Weather: {self.weather}, Temperature: {self.temperature}°C")
+                f"Weather: {self.weather}, Temperature: {self.temperature}°C, Date:{time.get_date()}, Time:{time.get_time()}")
 
 class Character(Describable):
     """Represents a character with attributes like personality, memory, etc."""
@@ -190,7 +183,8 @@ class Character(Describable):
         self.today_log: List[str] = []
         self.temp_memory: List[str] = []
         self.environment.add_character(self)
-
+        self.event_temp = []
+        self.status = False
     def move_to(self, new_position: Position):
         """Change character's position."""
         self.position = new_position
@@ -241,7 +235,7 @@ class Character(Describable):
         data = f"""
 "Here is your character data:
 Your basic information: name:{self.name},gender:{self.gender},age:{self.age}
-Your current position:{self.position}
+Your current position:{self.location}
 you are currently doing:{self.doing}
 Your personality:{self.personality}
 Your current mental state:{self.mental_state}
@@ -251,7 +245,12 @@ Memory details:
 long_term_memory:{self.long_term_memory}
 life_memory:{self.life_memory}
 short_term_memory:{self.short_term_memory}
+Environment:
+- Description: {self.environment.get_description()}
+- Objects: {self.get_objects_in_view()}
+- People: {self.get_characters_in_view()}
 """
+    
         now = f"""
     memories right now(temp_memory):{self.temp_memory}
     new event:{event}
@@ -266,29 +265,39 @@ short_term_memory:{self.short_term_memory}
                 f"Position: {self.position}, Doing: {self.doing}")
 
 class sys:
-    def __init__(self) -> None:
+    def __init__(self):
         pass
-    async def run(self,character:Character,environment:Environment):
-        reply = await character.perception("you woke up")
-        print(reply)
-        a = await environment.item_interaction(character1,reply)
-        print(a)
+    async def run(self,character:Character):
+        event = "you woke up"
+        reply = await character.perception(event)
+        for obj in character.environment.objects:
+            if obj.name == reply["target"]:
+                target = obj
+                a = await character.environment.item_interaction(character1,[target,reply["do",reply["action"]]])
 
+        for role in character.environment.characters:
+            if role.name == reply["target"]:
+                target = role
+                break
+
+
+time = TimeManager(datetime(2024,10,12,8,0,0))
 
 room = Environment(name="room",description="Alice's room")
 living_room = Environment(name="living_room",description="living_room")
 
 
-door = Gate("door", Position(10, 10), "The gate between Alice's room and living_room.", (room, living_room ))
+door = Gate("door", Position(10, 10), "The door between Alice's room and living_room.", (room, living_room ))
 
 tv = Item(name="tv",position=Position(1,2),description="an old tv")
-bed = Item(name="bed",location=Position(0,0),description="Alice's bed")
-table = Item(name="table",location=Position(-1,2),description="Alice's table")
-chair = Item(name="chair",location=Position(-1,3),description="Alice's chair")
-microwave = Item(name="microwave",location=Position(5,2),description="")
-fridge = Item(name="fridge",location=Position(5,3),description="")
+bed = Item(name="bed",position=Position(0,0),description="Alice's bed")
+table = Item(name="table",position=Position(-1,2),description="Alice's table")
+chair = Item(name="chair",position=Position(-1,3),description="Alice's chair")
+microwave = Item(name="microwave",position=Position(5,2),description="")
+fridge = Item(name="fridge",position=Position(5,3),description="")
 
-
+room.objects=[tv,bed,table,chair,door]
+living_room.objects=[microwave,fridge,door]
 
 character1 = Character(
     name="Alice",
@@ -310,8 +319,8 @@ character2 = Character(
     age=24,
     gender="female",
     environment=room,
-    location=Position(0,0),
-    position="bed",
+    location="bed",
+    position=Position(0,0),
     personality="kind and empathetic",
     mental_state="content",
 
@@ -323,8 +332,9 @@ character2 = Character(
 
 
 async def main():
-    system = sys
-    await system.run()
+    system = sys()
+    await system.run(character1)
 
 asyncio.run(main())
+
 
