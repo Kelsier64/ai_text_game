@@ -267,19 +267,13 @@ Environment:
 class sys:
     def __init__(self):
         pass
-    async def run(self,character:Character):
-        event = "you woke up"
-        reply = await character.perception(event)
-        for obj in character.environment.objects:
-            if obj.name == reply["target"]:
-                target = obj
-                a = await character.environment.item_interaction(character1,[target,reply["do",reply["action"]]])
-
-        for role in character.environment.characters:
-            if role.name == reply["target"]:
-                target = role
-                break
-
+    async def run(self,env:Environment):
+        tasks = []
+        for role in env.characters:
+            if role.status:
+                tasks.append(role.perception(role.event_temp))
+        re = await asyncio.gather(*tasks)
+        print(re)
 
 time = TimeManager(datetime(2024,10,12,8,0,0))
 
@@ -333,7 +327,12 @@ character2 = Character(
 
 async def main():
     system = sys()
-    await system.run(character1)
+    character1.status = True
+    character1.event_temp.append("you woke up")
+    character2.status = True
+    character2.event_temp.append("you woke up")
+    await system.run(room)
+
 
 asyncio.run(main())
 
