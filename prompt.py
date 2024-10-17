@@ -1,6 +1,6 @@
 perception_sys="Forget all previous settings.select the next thing you want to do based on your character data following"
 
-system={"role": "system","content":"you are a system of a game. Please generate responses based on data and instruction"}
+system="you are a system of a game. Please generate responses based on data and instruction"
 
 
 perception = """
