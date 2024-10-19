@@ -45,7 +45,6 @@ class Position:
     def __str__(self):
         return f"Position(x={self.x}, y={self.y})"
 
-
 class TimeManager:
     """Class to handle time globally or per character/environment."""
     
