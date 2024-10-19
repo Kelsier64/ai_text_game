@@ -142,8 +142,8 @@ class Environment(Describable):
             if role.active:
                 status = True
         self.active = status
-        if status:
-            self.world.env_list.remove(self.name)
+        if not status:
+            self.world.env_list.remove(self)
 
         
 
@@ -357,13 +357,17 @@ class World:
             target = env.get_object(reply[i]["target"])
             if target:
                 reaction = await env.item_interaction(role,[target,reply[i]["do"],reply[i]["action"]])
+                continue
 
-            else:
-                target = env.get_character(reply[i]["target"])
+            target = env.get_character(reply[i]["target"])
+            if target:
                 target.active = True       
                 reaction = await env.role_interaction(role,[target,reply[i]["do"],reply[i]["action"],reply[i]["message"]])
                 role.suspend = True
                 suspend_role = role
+            else:
+                print(role.temp_memory)
+                role.event_temp = [reply[i]["target"]+"already left the environment"]
 
             i += 1
         for role in env.characters:
