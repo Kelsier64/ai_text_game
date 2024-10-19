@@ -490,7 +490,6 @@ Example of a valid JSON response for person:
     reply["memory"]["event"] = change
     character.temp_memory.append(reply["memory"])
     character.temp_memory.append({"I_say":reply["message"]})
-    breakpoint()
     for item in character.environment.objects:
         if item.name == reply["target"]: 
             if reply["action"] == "continue":
@@ -593,7 +592,7 @@ Use JSON with keys: "execute","message","doing"
 Example of a valid JSON response:
 ```json
 {
-    "execute":{"function":"go"},
+    "execute":{"function":"goto"},
     "message":"you walk to the table and sit down",
     "doing":"study"
 }'''
@@ -659,8 +658,6 @@ Example of a valid JSON response:
     "requester_doing":"talking to Jack",
     "target_doing":"talking to Evan"
 }'''
-    
-    
 """
     messages = [system_prompt,{"role": "system","content":data},{"role": "system","content":instructions}]
     reply = json_request(messages, 2000)
@@ -748,7 +745,7 @@ Example of a valid JSON response:
     reply["memory"]["event"] = change
     character.temp_memory.append(reply["memory"])
     character.temp_memory.append({"I_said":reply["message"]})
-    breakpoint()
+
     if reply["interaction"] == "next":
 
         perception(character,"you end the conversation to do next thing")
