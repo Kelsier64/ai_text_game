@@ -1,7 +1,8 @@
-perception_sys="Forget all previous settings.select the next thing you want to do based on your character data following"
+perception_sys="Forget all previous settings.you are a character in a life simulator,select the next thing you want to do based on your character data and instruction following"
 
-system="you are a system of a game. Please generate responses based on the following data and instruction"
+temp_sum_sys="Forget all previous settings.you are a character in a life simulator,update your memory based on your character data and instruction following"
 
+system="you are a system of a life simulator game. Please generate responses based on the following data and instructions"
 
 perception = """
 Instructions:
@@ -15,7 +16,7 @@ if you selected an object:
 2.to do it,make an action.
 3.If you and the selected object are not in the same position, your first action should be walk toward it.
 4.Make some memories about your decision, thoughts, etc on the new event.
-5.Create a message.it is your murmur; however, it can also be left blank.
+5.the message,it is your murmur,no one can hear; however,it can also be left blank.
 6.if you want to keep what you are doing attentively for a while,leave "yes" in key "attentively"(this only works on object)
 
 if you selected a person:
@@ -53,6 +54,23 @@ Example of a valid JSON response for person:
   "keep":"no" (target is person,always "keep":"no")
 }'''
 """
+temp_sum="""
+***Do the following step by step:***
+1.base on temp memory,sum up what have you done.
+2.temp memory will be cleared,so remember some thing important,update it into short_term_memory.
+3.update memory in short_term_memory if need.
+Response Format:
+Use JSON with keys:"done","short_term_memory"
+
+Example of a valid JSON response:
+```json
+{
+    "done":"sum up what have you done",
+    "short_term_memory":[{json},{json},{json}]
+}'''
+"""
+
+
 
 item = """
 Instructions:
@@ -78,16 +96,16 @@ role = """
 Instructions:
 only do what character request.
 ***Do the following step by step:***
-1.base on data,generate a message for target to tell him what happened,conbine requester"s action,message,and other details in target's perspective(do not edit the message).
-2.update what the requester is doing in very brief(in third-person perspective).
-3.ganerate the "event" to tell eneryone in this environment what happened,conbine requester"s action,message,and other details but in third-person perspective(do not edit the message).
-Response Format:
+1.Based on the provided data, generate a message from the target's perspective that tells them what happened, describing the requester's behavior and what he said. (Do not edit the words the requester said; just add some description before it)
+2.Update what the requester is doing in very brief terms (in third-person perspective).
+3.ganerate the "event" to inform everyone in the environment what happened,describing the requester's behavior and what he said(Do not edit the words the requester said; just add some description before it)
+Response Format:s
 Use JSON with keys:"message","doing","event"
 Example of a valid JSON response:
 ```json
 {
-    "message":"Evan said to me:'good morning'",
-    "event":"Evan said to Jack:'good morning",
+    "message":"Evan smiled and said to me:'good morning'",
+    "event":"Evan smiled and says to Jack:'good morning",
     "doing":"talking to Jack"
 }'''
 """

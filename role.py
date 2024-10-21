@@ -522,8 +522,6 @@ temp_memory:{character.temp_memory}
 4.every memory you generate according to the data,DO NOT fabricated any memories on your own.
 
 ***Do the following step by step:***
-
-
 1.if there is some thing need to be remembered in temp_memory,Summarize it into short_term_memory,
 however do not remember unimportant memories.
 2.Summarize relative short_term_memory.

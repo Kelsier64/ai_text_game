@@ -239,9 +239,10 @@ class Character(Describable):
         self.hunger = 100
         self.concertration = 0
         self.facial_expression = "neutral"
-        self.doing = "idle"
+        self.doing = "sleep"
         self.personality = personality
         self.mental_state = mental_state
+        self.profile = ""
         self.long_term_memory =  long_term_memory
         self.short_term_memory = short_term_memory
         self.life_memory = life_memory
@@ -260,10 +261,14 @@ class Character(Describable):
         env = self.environment
         env.remove_character(self)
         self.environment = gate.traverse(self.environment)
-        self.environment.active = True
-        self.environment.world.env_list.append(self.environment)
-        self.environment.add_character(self)
         
+        if self.environment.active == False:
+            self.environment.active = True
+            self.environment.world.env_list.append(self.environment)
+        self.environment.add_character(self)
+    
+
+
     def get_objects_in_view(self):
         """Return objects and their positions relative to a character's location."""
         objects_in_view = []
@@ -275,7 +280,7 @@ class Character(Describable):
                 "position": f"{int(angle)} degrees / {int(distance)} meters"
             })
         return objects_in_view
-
+    
     def get_characters_in_view(self):
         """Return characters and their positions relative to a character's location."""
         characters_in_view = []
@@ -296,6 +301,31 @@ class Character(Describable):
         pass
     def interaction():
         pass
+    
+    async def temp_sum(self):
+        data = f"""
+"Here is your character data:
+Your basic information: name:{self.name},gender:{self.gender},age:{self.age}
+Your current position:{self.location}
+you are currently doing:{self.doing}
+Your personality:{self.personality}
+Your current mental state:{self.mental_state}
+Your attention level:{self.concertration} 
+Memory details:
+long_term_memory:{self.long_term_memory}
+life_memory:{self.life_memory}
+short_term_memory:{self.short_term_memory}
+Environment:
+- Description: {self.environment.get_description()}
+- Objects: {self.get_objects_in_view()}
+- People: {self.get_characters_in_view()}
+"""
+        
+        messages = [{"role": "system","content":prompt.temp_sum_sys},{"role": "system","content":data},{"role": "system","content":prompt.temp_sum}]
+        response = await json_request(messages)
+        self.today_log.append({time.get_time():response["done"]})
+        self.short_term_memory = response["short_term_memory"]
+
     async def perception(self):
         data = f"""
 "Here is your character data:
@@ -331,6 +361,8 @@ Environment:
             self.temp_memory.append({"I_say":response["message"]})
         if response["keep"] == "yes":
             self.active = False
+            await self.temp_sum()
+            
         return response
     
     def get_description(self) -> str:
@@ -353,10 +385,13 @@ class World:
 
         i = 0
         suspend_role = None
+
         for role in active_roles:
+
             target = env.get_object(reply[i]["target"])
             if target:
                 reaction = await env.item_interaction(role,[target,reply[i]["do"],reply[i]["action"]])
+                i += 1
                 continue
 
             target = env.get_character(reply[i]["target"])
@@ -365,11 +400,14 @@ class World:
                 reaction = await env.role_interaction(role,[target,reply[i]["do"],reply[i]["action"],reply[i]["message"]])
                 role.suspend = True
                 suspend_role = role
+                i += 1
             else:
                 print(role.temp_memory)
                 role.event_temp = [reply[i]["target"]+"already left the environment"]
+                i += 1
 
-            i += 1
+            
+
         for role in env.characters:
             if role != suspend_role and role.suspend:
                 role.suspend = False
