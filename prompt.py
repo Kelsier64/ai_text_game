@@ -16,9 +16,8 @@ if you selected an object:
 2.to do it,make an action.
 3.If you and the selected object are not in the same position, your first action should be walk toward it.
 4.Make some memories about your decision, thoughts, etc on the new event.
-5.the message,it is your murmur,no one can hear; however,it can also be left blank.
-6.if you want to keep what you are doing attentively for a while,leave "yes" in key "attentively"(this only works on object)
-
+5.the message,it is your murmur,no one can hear,it only say to yourself; however,it can also be left blank.
+6.if you want to keep doing it for a while,set a clock for it,output how many minutes you want to set;however,for immediate actions(walking or speaking,etc),do not set a clock,output 0.
 if you selected a person:
 1.the temp_memory is the previous conversation just now.
 2.you only can do interactional action,you CAN NOT go anywhere.
@@ -41,7 +40,7 @@ Example of a valid JSON response for object:
   "action":"sit down and study",
   "memory":"",
   "message":"",
-  "keep":"yes"
+  "clock":60
 }'''
 Example of a valid JSON response for person:
 ```json
@@ -51,14 +50,14 @@ Example of a valid JSON response for person:
   "action":"walk toward Jack",
   "memory":"",
   "message":"hi Jack."
-  "keep":"no" (target is person,always "keep":"no")
+  "clock":0 (target is person,always "clock":0)
 }'''
 """
 temp_sum="""
 ***Do the following step by step:***
-1.base on temp memory,sum up what have you done.
+1.base on temp memory,sum up what have you done in detail.
 2.temp memory will be cleared,so remember some thing important,update it into short_term_memory.
-3.update memory in short_term_memory if need.
+3.update memory in short_term_memory if need,or there is something need to be remembered.
 Response Format:
 Use JSON with keys:"done","short_term_memory"
 
@@ -79,7 +78,7 @@ only do what character request.
 1.base on data,select an appropriate function to use.if no suitable function,respond with "execute":{"function":"pass"}
 2.whether you pass the function or not,generate a message telling the requester that his action has been completed (in the first-person perspective).
 3.ganerate the "event" to tell eneryone in this environment what happened(in third-person perspective).
-4.update what the requester is doing now in brief(in third-person perspective).
+4.update what the requester is doing now in brief(in third-person perspective,only action no name of requester).
 Response Format:
 Use JSON with keys: "execute","message","event","doing"
 Example of a valid JSON response:

@@ -73,17 +73,20 @@ class WorldObject(Describable):
         self.name = name
         self.position = position
         self.description = description
-    
+
     def get_description(self) -> str:
         return f"{self.name}: {self.description}"
 
+class Storage(WorldObject):
+    """Items that characters can interact with."""
+    def __init__(self, name: str, position: Position, description: str):
+        super().__init__(name, position, description)
+        self.item_list = []
 
 class Item(WorldObject):
     """Items that characters can interact with."""
-
     def __init__(self, name: str, position: Position, description: str):
         super().__init__(name, position, description)
-
 
 class Gate(WorldObject):
     """Represents a gate that connects two environments."""
@@ -102,6 +105,7 @@ class Gate(WorldObject):
     def get_description(self) -> str:
         return (f"{self.name}: {self.description}, connects "
                 f"{self.connections[0].name} and {self.connections[1].name}")
+
 
 
 class Environment(Describable):
@@ -164,9 +168,12 @@ action:{request[2]}
 """
         functions = """
     function you have:
-    {"function":"goto"}(ex:"function":"goto","doing":"study"),
-    {"function":"sleep"},
-    {"function":"enter"}(ex:"function":"enter","message":"you enter the living room","doing":"stand by the door"),
+    {"function":"goto"}(go to somewhere)(ex:"function":"goto","doing":"study")
+    {"function":"sleep"}(go sleep)
+    {"function":"enter"}(enter a door)(ex:"function":"enter","message":"you enter the living room","doing":"stand by the door")
+    {"function":"check"}(requester get details of an item)
+    {"function":"get"}(requester get the item)
+    {"function":"update"}(update the status of the item)
     {"function":"pass"}
 """         
         messages = [{"role": "system","content":prompt.system},{"role": "system","content":data},{"role": "system","content":functions},{"role": "system","content":prompt.item}]
@@ -178,6 +185,10 @@ action:{request[2]}
             character.location = target.name
 
         if response["execute"]["function"] == "enter":
+            character.move_to(target.position)
+            character.go_through_gate(target)
+
+        if response["execute"]["function"] == "check":
             character.move_to(target.position)
             character.go_through_gate(target)
 
@@ -236,13 +247,15 @@ class Character(Describable):
         self.environment = environment
         self.position = position
         self.location = location
+        # self.item_list = []
+        # self.wearing = []
         self.hunger = 100
         self.concertration = 0
         self.facial_expression = "neutral"
         self.doing = "sleep"
         self.personality = personality
         self.mental_state = mental_state
-        self.profile = ""
+        # self.profile = ""
         self.long_term_memory =  long_term_memory
         self.short_term_memory = short_term_memory
         self.life_memory = life_memory
@@ -316,13 +329,17 @@ long_term_memory:{self.long_term_memory}
 life_memory:{self.life_memory}
 short_term_memory:{self.short_term_memory}
 Environment:
-- Description: {self.environment.get_description()}
-- Objects: {self.get_objects_in_view()}
-- People: {self.get_characters_in_view()}
+- environment description: {self.environment.get_description()}
+- objects in environment: {self.get_objects_in_view()}
+- people in environment: {self.get_characters_in_view()}
 """
-        
-        messages = [{"role": "system","content":prompt.temp_sum_sys},{"role": "system","content":data},{"role": "system","content":prompt.temp_sum}]
+        now = f"""
+    memories right now(temp_memory):{self.temp_memory}
+    new event(what happened now):{self.event_temp}
+"""
+        messages = [{"role": "system","content":prompt.temp_sum_sys},{"role": "system","content":data},{"role": "system","content":now},{"role": "system","content":prompt.temp_sum}]
         response = await json_request(messages)
+        self.temp_memory = []
         self.today_log.append({time.get_time():response["done"]})
         self.short_term_memory = response["short_term_memory"]
 
@@ -359,7 +376,8 @@ Environment:
 
         if response["message"] != "":
             self.temp_memory.append({"I_say":response["message"]})
-        if response["keep"] == "yes":
+        print(response["clock"])
+        if response["clock"] != 0:
             self.active = False
             await self.temp_sum()
             
@@ -449,7 +467,7 @@ character1 = Character(
     position=Position(0,0),
     personality="extrovert",
     mental_state="normal",
-    long_term_memory=[{'relationship': {'Emily': 'my girlfriend'}}, {'environment': 'I live in NYC, kitchen is in living room '}, {'thought_about_Emily': 'she is a nice person'}, {'routine': 'after woke up,i go to living room and make breakfast for Emily'}, {'reminder': 'Finish math homework by today'}, {'goal': 'Practice basketball for at least an hour'}, {'challenges': 'Balancing schoolwork and basketball practice'}, {'proud_of': 'Maintaining good grades while being active in sports'}, {'values': 'Hard work, dedication, and maintaining relationships'}, {'self': 'I am a dedicated and hardworking individual who values relationships and strives to balance academics and sports'}],
+    long_term_memory=[{'relationship': {'Emily': 'my girlfriend'}}, {'environment': 'I live in NYC, kitchen is in living room '}, {'thought_about_Emily': 'she is a nice person'}, {'routine': 'after woke up,i go study for 30 minutes brfore breakfast'}, {'reminder': 'Finish math homework by today'}, {'goal': 'Practice basketball for at least an hour'}, {'challenges': 'Balancing schoolwork and basketball practice'}, {'proud_of': 'Maintaining good grades while being active in sports'}, {'values': 'Hard work, dedication, and maintaining relationships'}, {'self': 'I am a dedicated and hardworking individual who values relationships and strives to balance academics and sports'}],
     life_memory=[{'yesterday': 'Today was productive and fulfilling. I woke up early, had a good breakfast, and went to school. I stayed focused during math and science classes, enjoyed lunch with friends, and worked well on the history group project. After school, I relaxed, did my homework, practiced basketball, and ended the day with a nice dinner and some video games.', '2days_ago': 'I went to school and had math and science classes in the morning. During lunch, I hung out with my friends, and in the afternoon, we had a group project in history. After school, I did some homework and practiced basketball.', '3days_ago': 'I spent most of the day studying for a big biology exam. I also had basketball practice after school, which was pretty tiring.', 'old_days': 'Routine school days with classes, homework, basketball practice, and hanging out with friends. Helped a friend with math, worked on an English essay, and played video games.'}],
     short_term_memory=[{'thought': 'Remember to ask the teacher about the project'}, {'task': 'Study for the biology test next week'}, {'idea': 'Start working on the English presentation'}, {'plan': 'Meet friends after school tomorrow'}, {'tip': 'Stay focused during class discussions'}, {'schedule': '7:00 wake up, 8:00 eat breakfast, 9:00 go to school, 15:00 practice basketball, 18:00 dinner, 19:00 finish math homework'}]
     )
@@ -469,8 +487,6 @@ character2 = Character(
     life_memory=[{'yesterday': 'It was a wonderful day. I woke up excited to meet Alice later. Despite a busy day at work, I managed to stay focused and complete my presentation. I had a lovely dinner with Alice and ended the day with a peaceful walk together. Feeling happy and loved.', '2days_ago': 'I spent the evening with Alice, we went to the park and grabbed dinner at our favorite restaurant.', '3days_ago': 'I had a busy day at work, but Alice sent me a sweet message that made my day better.', 'old_days': "We've been together for almost two years now, sharing many memories—trips, dinners, late-night conversations. She's been a huge part of my life."}],
     short_term_memory=[{'reminder': "Buy Alice's favorite tea when I visit her today."}, {'task': 'Prepare the proposal for the meeting on Thursday.'}, {'idea': 'Plan a weekend getaway with Alice.'}, {'tip': 'Take a break when feeling overwhelmed at work.'}, {'schedule': '7:00 wake up, 8:00 eat breakfast, 9:00 go to work, 18:00 visit Alice, 20:00 relax at home'}]
 )
-
-
 
 async def main():
     system = World()
