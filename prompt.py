@@ -69,8 +69,6 @@ Example of a valid JSON response:
 }'''
 """
 
-
-
 item = """
 Instructions:
 only do what character request.
@@ -88,6 +86,23 @@ Example of a valid JSON response:
     "message":"you walk to the table and sit down",
     "event":"",
     "doing":"study"
+}'''
+"""
+
+update = """
+Instructions:
+***Do the following step by step:***
+1.base on user's action and the target's function,update environment's data. 
+2.you can update it or leave it unchanged.
+3.you can remove item.
+Response Format:
+Use JSON with keys:"items","characters"
+Example of a valid JSON response:
+```json
+{
+    "items":[{},{}],
+    "characters":[{},{}],
+    "remove":"item"
 }'''
 """
 

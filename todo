@@ -5,3 +5,5 @@ make fake memory
 same env same fake memory
 do function --> keep and fake memory
 char item list
+role_interaction update data
+role item id

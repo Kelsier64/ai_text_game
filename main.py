@@ -57,7 +57,6 @@ class TimeManager:
     def get_date(self) -> str:
         return self.current_time.strftime("%m/%d %A")
 
-
 class Describable(ABC):
     """Abstract class for objects that have a name and description."""
     
@@ -65,34 +64,34 @@ class Describable(ABC):
     def get_description(self) -> str:
         pass
 
-
 class WorldObject(Describable):
     """Base class for objects in the environment."""
     
-    def __init__(self, name: str, position: Position, description: str):
+    def __init__(self, name: str, position: Position, description: str,informations:str,functions:str):
         self.name = name
         self.position = position
         self.description = description
-
+        self.informations = informations
+        self.functions = functions
     def get_description(self) -> str:
         return f"{self.name}: {self.description}"
 
 class Storage(WorldObject):
     """Items that characters can interact with."""
-    def __init__(self, name: str, position: Position, description: str):
-        super().__init__(name, position, description)
+    def __init__(self, name: str, position: Position, description: str,informations:str,functions:str):
+        super().__init__(name, position, description,informations,functions)
         self.item_list = []
 
 class Item(WorldObject):
     """Items that characters can interact with."""
-    def __init__(self, name: str, position: Position, description: str):
-        super().__init__(name, position, description)
+    def __init__(self, name: str, position: Position, description: str,informations:str,functions:str):
+        super().__init__(name, position, description,informations,functions)
 
 class Gate(WorldObject):
     """Represents a gate that connects two environments."""
     
-    def __init__(self, name: str, position: Position, description: str, connections: Tuple['Environment', 'Environment']):
-        super().__init__(name, position, description)
+    def __init__(self, name: str, position: Position, description: str, connections: Tuple['Environment', 'Environment'],informations:str,functions:str):
+        super().__init__(name, position, description,informations,functions)
         self.connections = connections
 
     def traverse(self, current_environment: 'Environment') -> 'Environment':
@@ -105,8 +104,6 @@ class Gate(WorldObject):
     def get_description(self) -> str:
         return (f"{self.name}: {self.description}, connects "
                 f"{self.connections[0].name} and {self.connections[1].name}")
-
-
 
 class Environment(Describable):
     """Represents the environment in which characters and objects exist."""
@@ -172,8 +169,7 @@ action:{request[2]}
     {"function":"sleep"}(go sleep)
     {"function":"enter"}(enter a door)(ex:"function":"enter","message":"you enter the living room","doing":"stand by the door")
     {"function":"check"}(requester get details of an item)
-    {"function":"get"}(requester get the item)
-    {"function":"update"}(update the status of the item)
+    {"function":"interact"}(requester interact with the target)
     {"function":"pass"}
 """         
         messages = [{"role": "system","content":prompt.system},{"role": "system","content":data},{"role": "system","content":functions},{"role": "system","content":prompt.item}]
@@ -202,6 +198,43 @@ action:{request[2]}
         print(response["event"])
         return response
     
+    async def update(self,character:'Character',target:Item,action:str):
+        data=f"""
+"Here is data of the game:
+environment details:
+{self.get_description()}
+objects in environment (perspective of character):
+{character.get_objects_in_view()}
+people in this environment (perspective of character):
+{character.get_characters_in_view()}
+request character:{character.get_description()}
+Target Item:{target.name}
+
+
+request character's action:{action}
+"""
+        action_data = f""
+        items = []
+        for item in self.objects:
+            item_json = {"name":item.name,"position":item.position,"description":item.description,"informations":item.informations,"functions":item.functions}
+            items.append(item_json)
+
+        characters = []
+        for character in self.characters:
+            character_json = {"name":character.name,"position":character.position,"environment":character.environment}
+            characters.append(character_json)
+        json_data=f"""
+json data list:
+items:{items}
+characters:{characters}
+"""
+        
+
+        messages = [{"role": "system","content":prompt.system},{"role": "system","content":data},{"role": "system","content":json_data},{"role": "system","content":prompt.update}]
+        response = await json_request(messages)
+        return response
+    
+
     async def role_interaction(self,character:'Character',request:list):
         data=f"""
 "Here is data of the game:
@@ -233,6 +266,9 @@ target:{request[0].name}
         character.doing = response["doing"]
         print(response["event"])
         return response
+    
+    
+    
     def get_description(self) -> str:
         return (f"Environment: {self.name}, Description: {self.description}, "
                 f"Weather: {self.weather}, Temperature: {self.temperature}°C, Date:{time.get_date()}, Time:{time.get_time()}")
@@ -247,7 +283,7 @@ class Character(Describable):
         self.environment = environment
         self.position = position
         self.location = location
-        # self.item_list = []
+        self.item_list = []
         # self.wearing = []
         self.hunger = 100
         self.concertration = 0
@@ -446,14 +482,14 @@ room = Environment(name="room",description="Alice's room")
 living_room = Environment(name="living_room",description="living_room")
 
 
-door = Gate("door", Position(10, 10), "The door between Alice's room and living_room.", (room, living_room ))
+door = Gate("door", Position(10, 10), "The door between Alice's room and living_room.",(room,living_room),"","enter Alice's room or living_room")
 
-tv = Item(name="tv",position=Position(1,2),description="an old tv")
-bed = Item(name="bed",position=Position(0,0),description="Alice's bed")
-table = Item(name="table",position=Position(-1,2),description="Alice's table")
-chair = Item(name="chair",position=Position(-1,3),description="Alice's chair")
-microwave = Item(name="microwave",position=Position(5,2),description="")
-fridge = Item(name="fridge",position=Position(5,3),description="")
+tv = Item(name="tv",position=Position(1,2),description="an old tv",informations="",functions="")
+bed = Item(name="bed",position=Position(0,0),description="Alice's bed",informations="",functions="")
+table = Item(name="table",position=Position(-1,2),description="Alice's table",informations="",functions="")
+chair = Item(name="chair",position=Position(-1,3),description="Alice's chair",informations="",functions="")
+microwave = Item(name="microwave",position=Position(5,2),description="",informations="",functions="")
+fridge = Item(name="fridge",position=Position(5,3),description="",informations="",functions="")
 
 room.objects=[tv,bed,table,chair,door]
 living_room.objects=[microwave,fridge,door]
@@ -501,6 +537,12 @@ async def main():
     await system.run()
 
 
-asyncio.run(main())
+# asyncio.run(main())
+
+async def test():
+    re = await room.update(character1,door,"open the door and enter")
+    print(re)
+
+asyncio.run(test())
 
 
