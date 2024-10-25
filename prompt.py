@@ -105,6 +105,25 @@ Example of a valid JSON response:
     "remove":"item"
 }'''
 """
+target = """
+Instructions:
+***Do the following step by step:***
+1.base on user's action and the target's function,select objects or characters needed to be updated.
+2.generate commands to instruct the system on how to update character states.  
+3.generate a message telling the requester that his action has been completed (in the first-person perspective).
+4.ganerate the "event" to tell eneryone in this environment what happened(in third-person perspective).
+Response Format:
+Use JSON with keys:"items","characters","message","event"
+Example of a valid JSON response:
+```json
+{
+    "objects":[{"name":"","instruction":""},{"name":"","instruction":""}]
+    "characters":[{"name":"","instruction":""},{"name":"","instruction":""}]
+    "message":"you walk to the table and sit down",
+    "event":""
+}'''
+"""
+
 
 role = """
 Instructions:

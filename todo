@@ -7,3 +7,7 @@ do function --> keep and fake memory
 char item list
 role_interaction update data
 role item id
+env list
+character.get_data
+env update
+item.visible

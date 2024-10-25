@@ -67,12 +67,14 @@ class Describable(ABC):
 class WorldObject(Describable):
     """Base class for objects in the environment."""
     
-    def __init__(self, name: str, position: Position, description: str,informations:str,functions:str):
+    def __init__(self, name: str,location:str, position: Position, description: str,informations:str,functions:str,visible:bool):
         self.name = name
+        self.location = location
         self.position = position
         self.description = description
         self.informations = informations
         self.functions = functions
+        self.visible = visible
     def get_description(self) -> str:
         return f"{self.name}: {self.description}"
 
@@ -115,7 +117,6 @@ class Environment(Describable):
         self.temperature = 25
         self.objects: List[WorldObject] = []
         self.characters: List['Character'] = []
-        self.event_temp = []
         self.active = False
         self.world:World
     def add_character(self, character: 'Character'):
@@ -316,8 +317,6 @@ class Character(Describable):
             self.environment.world.env_list.append(self.environment)
         self.environment.add_character(self)
     
-
-
     def get_objects_in_view(self):
         """Return objects and their positions relative to a character's location."""
         objects_in_view = []
@@ -537,12 +536,12 @@ async def main():
     await system.run()
 
 
-# asyncio.run(main())
+asyncio.run(main())
 
 async def test():
     re = await room.update(character1,door,"open the door and enter")
     print(re)
 
-asyncio.run(test())
+# asyncio.run(test())
 
 
