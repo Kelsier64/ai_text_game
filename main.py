@@ -6,7 +6,9 @@ import asyncio
 from openai import AsyncAzureOpenAI
 from dotenv import load_dotenv
 import os,json
+import ast
 import prompt
+
 load_dotenv()
 API_KEY = os.getenv("AZURE_OPENAI_API_KEY") 
 RESOURCE_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT") 
@@ -41,7 +43,11 @@ class Position:
     def angle_to(self, other: 'Position') -> float:
         """Calculate the angle between two positions."""
         return math.degrees(math.atan2(other.y - self.y, other.x - self.x))
-
+    def get(self):
+        return (self.x,self.y)
+    def update(self,position:Tuple):
+        self.x=position[0]
+        self.y=position[1]
     def __str__(self):
         return f"Position(x={self.x}, y={self.y})"
 
@@ -67,28 +73,20 @@ class Describable(ABC):
 class WorldObject(Describable):
     """Base class for objects in the environment."""
     
-    def __init__(self, name: str,location:str, position: Position, description: str,informations:str,functions:str,visible:bool):
+    def __init__(self, name: str, position: Position, description: str,informations:str,functions:str):
         self.name = name
-        self.location = location
         self.position = position
         self.description = description
         self.informations = informations
         self.functions = functions
-        self.visible = visible
+
+        # self.visible = True
+        # self.objects_list = []
+        # self.location = location
     def get_description(self) -> str:
-        return f"{self.name}: {self.description}"
+        return f"Object:{self.name},Description:{self.description}"
 
-class Storage(WorldObject):
-    """Items that characters can interact with."""
-    def __init__(self, name: str, position: Position, description: str,informations:str,functions:str):
-        super().__init__(name, position, description,informations,functions)
-        self.item_list = []
-
-class Item(WorldObject):
-    """Items that characters can interact with."""
-    def __init__(self, name: str, position: Position, description: str,informations:str,functions:str):
-        super().__init__(name, position, description,informations,functions)
-
+# dont need
 class Gate(WorldObject):
     """Represents a gate that connects two environments."""
     
@@ -106,6 +104,7 @@ class Gate(WorldObject):
     def get_description(self) -> str:
         return (f"{self.name}: {self.description}, connects "
                 f"{self.connections[0].name} and {self.connections[1].name}")
+
 
 class Environment(Describable):
     """Represents the environment in which characters and objects exist."""
@@ -145,10 +144,111 @@ class Environment(Describable):
                 status = True
         self.active = status
         if not status:
-            self.world.env_list.remove(self)
+            self.world.active_env.remove(self)
 
-        
+    def get_character(self, name: str = None, description: str = None) -> 'Character':
+        """Retrieve a character by their name and/or description."""
+        for character in self.characters:
+            if (name is None or character.name == name) and (description is None or character.description == description):
+                return character
+        return None
 
+    def get_object(self, name: str = None, description: str = None) -> 'WorldObject':
+        for obj in self.objects:
+            if (name is None or obj.name == name) and (description is None or obj.description == description):
+                return obj
+        return None
+    
+    def get_objects_all(self):
+        objects_in_view = []
+        for obj in self.objects:
+            objects_in_view.append({
+                "object": obj.get_description(),
+                "absolute_position":obj.position.get()
+            })
+        return objects_in_view
+    
+    def get_characters_all(self):
+        characters_in_view = []
+        for character in self.characters:     
+            characters_in_view.append({
+                "character": character.get_description(),
+                "absolute_position":character.position.get()
+            })
+        return characters_in_view
+    async def object_update(self,target:WorldObject,instruction):
+        data=f"""
+"Here is data of the game:
+environment details:{self.get_description()}
+environment list:{[env.name for env in self.world.all_env]}
+objects in environment:
+{self.get_objects_all()}
+people in this environment:
+{self.get_characters_all()}
+target details:
+target name:{target.name}
+absolute_position:{target.position.get()}
+description:{target.description}
+informations:{target.informations}
+functions:{target.functions}
+instruction:{instruction}
+"""     
+        print(data)
+        messages = [{"role": "system","content":data},{"role": "system","content":prompt.system},{"role": "system","content":prompt.object_update}]
+        response = await json_request(messages)
+        target.position.update(ast.literal_eval(response["absolute_position"]))
+        target.description = response["description"]
+        target.informations = response["informations"]
+        target.functions = response["functions"]
+        print(response)
+    async def character_update(self,target:'Character',instruction):
+        data=f"""
+"Here is data of the game:
+environment details:{self.get_description()}
+environment list:{[env.name for env in self.world.all_env]}
+objects in environment:
+{self.get_objects_all()}
+people in this environment:
+{self.get_characters_all()}
+target details:
+target name:{target.get_description()}
+absolute_position:{target.position.get()}
+inventory:{target.inventory}
+environment:{target.environment.name}
+instruction:{instruction}
+"""     
+        messages = [{"role": "system","content":data},{"role": "system","content":prompt.system},{"role": "system","content":prompt.character_update}]
+        response = await json_request(messages)
+        print(response)
+        target.position.update(ast.literal_eval(response["absolute_position"]))
+        target.description = response["description"]
+        target.inventory = response["inventory"]
+        if target.environment.name != response["environment"]:
+            target.environment = self.world.get_env(response["environment"])
+            
+
+    def get_data(self,character:'Character',target:WorldObject,do,action):
+        data=f"""
+"Here is data of the game:
+environment details:{self.get_description()}
+environment list:{[env.name for env in self.world.all_env]}
+objects in environment (relate to request character):
+{character.get_objects_in_view()}
+people in this environment (relate to request character):
+{character.get_characters_in_view()}
+target details:
+target name:{target.name}
+absolute_position:{target.position.get()}
+description:{target.description}
+informations:{target.informations}
+functions:{target.functions}
+request details:
+request character:{character.get_description()}
+want to do:{do}
+action:{action}
+"""     
+        return data
+    
     async def item_interaction(self,character:'Character',request:list):
         data=f"""
 "Here is data of the game:
@@ -175,7 +275,7 @@ action:{request[2]}
 """         
         messages = [{"role": "system","content":prompt.system},{"role": "system","content":data},{"role": "system","content":functions},{"role": "system","content":prompt.item}]
         response = await json_request(messages)
-        target:Item = request[0]
+        target:WorldObject = request[0]
         character.event_temp = []
         if response["execute"]["function"] == "goto":
             character.move_to(target.position)
@@ -199,43 +299,36 @@ action:{request[2]}
         print(response["event"])
         return response
     
-    async def update(self,character:'Character',target:Item,action:str):
-        data=f"""
-"Here is data of the game:
-environment details:
-{self.get_description()}
-objects in environment (perspective of character):
-{character.get_objects_in_view()}
-people in this environment (perspective of character):
-{character.get_characters_in_view()}
-request character:{character.get_description()}
-Target Item:{target.name}
-
-
-request character's action:{action}
-"""
-        action_data = f""
-        items = []
-        for item in self.objects:
-            item_json = {"name":item.name,"position":item.position,"description":item.description,"informations":item.informations,"functions":item.functions}
-            items.append(item_json)
-
-        characters = []
-        for character in self.characters:
-            character_json = {"name":character.name,"position":character.position,"environment":character.environment}
-            characters.append(character_json)
-        json_data=f"""
-json data list:
-items:{items}
-characters:{characters}
-"""
+    async def system_instruct(self,character:'Character',request:list):
+        target:WorldObject = request[0]
+        data=self.get_data(character,target,request[1],request[2])
         
-
-        messages = [{"role": "system","content":prompt.system},{"role": "system","content":data},{"role": "system","content":json_data},{"role": "system","content":prompt.update}]
+        messages = [{"role": "system","content":prompt.system},{"role": "system","content":data},{"role": "system","content":prompt.target}]
         response = await json_request(messages)
-        return response
-    
+        print(response)
+        objects = response["objects"]
+        characters = response["characters"]
+        for obj in objects:
+            name = obj["name"]
+            description = obj["description_now"]
+            instruction = obj["instruction"]
+            target = self.get_object(name,description)
+            await self.object_update(target,instruction)
 
+        for char in characters:
+            name = char["name"]
+            description = char["description_now"]
+            instruction = char["instruction"]
+            target = self.get_character(name,description)
+            await self.character_update(target,instruction)
+
+        for role in self.characters:
+            if role != character:
+                role.event_temp.append(response["event"])
+
+        character.event_temp.append(response["message"])
+        return target
+    
     async def role_interaction(self,character:'Character',request:list):
         data=f"""
 "Here is data of the game:
@@ -268,8 +361,6 @@ target:{request[0].name}
         print(response["event"])
         return response
     
-    
-    
     def get_description(self) -> str:
         return (f"Environment: {self.name}, Description: {self.description}, "
                 f"Weather: {self.weather}, Temperature: {self.temperature}°C, Date:{time.get_date()}, Time:{time.get_time()}")
@@ -281,15 +372,6 @@ class Character(Describable):
         self.name = name
         self.age = age
         self.gender = gender
-        self.environment = environment
-        self.position = position
-        self.location = location
-        self.item_list = []
-        # self.wearing = []
-        self.hunger = 100
-        self.concertration = 0
-        self.facial_expression = "neutral"
-        self.doing = "sleep"
         self.personality = personality
         self.mental_state = mental_state
         # self.profile = ""
@@ -298,10 +380,25 @@ class Character(Describable):
         self.life_memory = life_memory
         self.today_log: List[str] = []
         self.temp_memory: List[str] = []
-        self.environment.add_character(self)
+        self.concertration = 0
+
+        self.environment = environment
+        self.position = position
+        
+        self.inventory = []
+        # self.wearing = []
+        self.hunger = 100   
+
+        self.doing = "sleep"
+        self.facial_expression = "neutral"
+        self.location = location
+        self.description = "sleeping now"
+
         self.event_temp = []
         self.active= False
         self.suspend = False
+
+        self.environment.add_character(self)
     def move_to(self, new_position: Position):
         """Change character's position."""
         self.position = new_position
@@ -314,7 +411,7 @@ class Character(Describable):
         
         if self.environment.active == False:
             self.environment.active = True
-            self.environment.world.env_list.append(self.environment)
+            self.environment.world.active_env.append(self.environment)
         self.environment.add_character(self)
     
     def get_objects_in_view(self):
@@ -325,7 +422,8 @@ class Character(Describable):
             distance = self.position.distance_to(obj.position)
             objects_in_view.append({
                 "object": obj.get_description(),
-                "position": f"{int(angle)} degrees / {int(distance)} meters"
+                "relative_position": f"{int(angle)} degrees / {int(distance)} meters",
+                "absolute_position":obj.position.get()
             })
         return objects_in_view
     
@@ -337,9 +435,9 @@ class Character(Describable):
                 angle = self.position.angle_to(character.position)
                 distance = self.position.distance_to(character.position)
                 characters_in_view.append({
-                    "character": character.name,
-                    "action": character.doing,
-                    "position": f"{int(angle)} degrees / {int(distance)} meters"
+                    "character": character.get_description(),
+                    "relative_position": f"{int(angle)} degrees / {int(distance)} meters",
+                    "absolute_position":character.position.get()
                 })
         return characters_in_view
     
@@ -349,8 +447,7 @@ class Character(Describable):
         pass
     def interaction():
         pass
-    
-    async def temp_sum(self):
+    def get_data(self):
         data = f"""
 "Here is your character data:
 Your basic information: name:{self.name},gender:{self.gender},age:{self.age}
@@ -368,6 +465,10 @@ Environment:
 - objects in environment: {self.get_objects_in_view()}
 - people in environment: {self.get_characters_in_view()}
 """
+        return data
+    
+    async def temp_sum(self):
+        data = self.get_data()
         now = f"""
     memories right now(temp_memory):{self.temp_memory}
     new event(what happened now):{self.event_temp}
@@ -379,29 +480,11 @@ Environment:
         self.short_term_memory = response["short_term_memory"]
 
     async def perception(self):
-        data = f"""
-"Here is your character data:
-Your basic information: name:{self.name},gender:{self.gender},age:{self.age}
-Your current position:{self.location}
-you are currently doing:{self.doing}
-Your personality:{self.personality}
-Your current mental state:{self.mental_state}
-Your attention level:{self.concertration} 
-Memory details:
-long_term_memory:{self.long_term_memory}
-life_memory:{self.life_memory}
-short_term_memory:{self.short_term_memory}
-Environment:
-- Description: {self.environment.get_description()}
-- Objects: {self.get_objects_in_view()}
-- People: {self.get_characters_in_view()}
-"""
-
+        data = self.get_data()
         now = f"""
     memories right now(temp_memory):{self.temp_memory}
     new event(what happened now):{self.event_temp}
 """
-
 
         messages = [{"role": "system","content":prompt.perception_sys},{"role": "system","content":data},{"role": "system","content":now},{"role": "system","content":prompt.perception}]
         response = await json_request(messages)
@@ -419,12 +502,12 @@ Environment:
         return response
     
     def get_description(self) -> str:
-        return (f"Name: {self.name}, Age: {self.age}, Gender: {self.gender}, "
-                f"Position: {self.position}, Doing: {self.doing}")
+        return (f"Name:{self.name},Gender:{self.gender},Description:{self.description}")
 
 class World:
-    def __init__(self):
-        self.env_list = []
+    def __init__(self,all_env):
+        self.active_env = []
+        self.all_env = all_env
     async def run_env(self,env:Environment):
         tasks = []
         active_roles:list[Character] = []
@@ -443,7 +526,7 @@ class World:
 
             target = env.get_object(reply[i]["target"])
             if target:
-                reaction = await env.item_interaction(role,[target,reply[i]["do"],reply[i]["action"]])
+                reaction = await env.system_instruct(role,[target,reply[i]["do"],reply[i]["action"]])
                 i += 1
                 continue
 
@@ -469,10 +552,14 @@ class World:
         if i == 0:
             env.if_active()
             breakpoint()
-
+    def get_env(self, name: str):
+        for env in self.all_env:
+            if (env.name == name):
+                return env
+        return None
     async def run(self):
         while True:
-            for env in self.env_list:
+            for env in self.active_env:
                 await self.run_env(env)
             
 time = TimeManager(datetime(2024,10,12,8,0,0))
@@ -481,14 +568,14 @@ room = Environment(name="room",description="Alice's room")
 living_room = Environment(name="living_room",description="living_room")
 
 
-door = Gate("door", Position(10, 10), "The door between Alice's room and living_room.",(room,living_room),"","enter Alice's room or living_room")
+door = Gate("door", Position(10, 10), "closed",(room,living_room),"The door between Alice's room and 'living_room'.",functions="enter Alice's room or 'living_room'")
 
-tv = Item(name="tv",position=Position(1,2),description="an old tv",informations="",functions="")
-bed = Item(name="bed",position=Position(0,0),description="Alice's bed",informations="",functions="")
-table = Item(name="table",position=Position(-1,2),description="Alice's table",informations="",functions="")
-chair = Item(name="chair",position=Position(-1,3),description="Alice's chair",informations="",functions="")
-microwave = Item(name="microwave",position=Position(5,2),description="",informations="",functions="")
-fridge = Item(name="fridge",position=Position(5,3),description="",informations="",functions="")
+tv = WorldObject(name="tv",position=Position(1,2),description="an old tv",informations="",functions="")
+bed = WorldObject(name="bed",position=Position(0,0),description="Alice's bed",informations="",functions="")
+table = WorldObject(name="table",position=Position(-1,2),description="Alice's table",informations="",functions="")
+chair = WorldObject(name="chair",position=Position(-1,3),description="Alice's chair",informations="",functions="")
+microwave = WorldObject(name="microwave",position=Position(5,2),description="",informations="",functions="")
+fridge = WorldObject(name="fridge",position=Position(5,3),description="",informations="",functions="")
 
 room.objects=[tv,bed,table,chair,door]
 living_room.objects=[microwave,fridge,door]
@@ -508,26 +595,26 @@ character1 = Character(
     )
 
 
-character2 = Character(
-    name="Emily",
-    age=24,
-    gender="female",
-    environment=room,
-    location="bed",
-    position=Position(0,0),
-    personality="kind and empathetic",
-    mental_state="content",
+# character2 = Character(
+#     name="Emily",
+#     age=24,
+#     gender="female",
+#     environment=room,
+#     location="bed",
+#     position=Position(0,0),
+#     personality="kind and empathetic",
+#     mental_state="content",
 
-    long_term_memory=[{'relationship': {'Alice': 'my boyfriend'}}, {'environment': 'I live in Brooklyn, my favorite café is just around the corner'}, {'thought_about_Alice': 'he is so energetic and always brightens my day'}, {'values': 'honesty, compassion'}, {'beliefs': 'Love is about mutual respect and support'}, {'memory': 'I had a lovely dinner with Alice and ended the day with a peaceful walk together. Feeling happy and loved.'}, {'challenges': 'Balancing work and personal life can be tough, but I manage by staying organized and taking breaks when needed.'}, {'proud_of': 'Completing my presentation despite a busy day at work.'}, {'goal': 'Plan a weekend getaway with Alice.'}, {'self': 'I am a kind and empathetic person who values honesty and compassion. I believe in mutual respect and support in relationships. I strive to balance my work and personal life effectively.'}],
-    life_memory=[{'yesterday': 'It was a wonderful day. I woke up excited to meet Alice later. Despite a busy day at work, I managed to stay focused and complete my presentation. I had a lovely dinner with Alice and ended the day with a peaceful walk together. Feeling happy and loved.', '2days_ago': 'I spent the evening with Alice, we went to the park and grabbed dinner at our favorite restaurant.', '3days_ago': 'I had a busy day at work, but Alice sent me a sweet message that made my day better.', 'old_days': "We've been together for almost two years now, sharing many memories—trips, dinners, late-night conversations. She's been a huge part of my life."}],
-    short_term_memory=[{'reminder': "Buy Alice's favorite tea when I visit her today."}, {'task': 'Prepare the proposal for the meeting on Thursday.'}, {'idea': 'Plan a weekend getaway with Alice.'}, {'tip': 'Take a break when feeling overwhelmed at work.'}, {'schedule': '7:00 wake up, 8:00 eat breakfast, 9:00 go to work, 18:00 visit Alice, 20:00 relax at home'}]
-)
+#     long_term_memory=[{'relationship': {'Alice': 'my boyfriend'}}, {'environment': 'I live in Brooklyn, my favorite café is just around the corner'}, {'thought_about_Alice': 'he is so energetic and always brightens my day'}, {'values': 'honesty, compassion'}, {'beliefs': 'Love is about mutual respect and support'}, {'memory': 'I had a lovely dinner with Alice and ended the day with a peaceful walk together. Feeling happy and loved.'}, {'challenges': 'Balancing work and personal life can be tough, but I manage by staying organized and taking breaks when needed.'}, {'proud_of': 'Completing my presentation despite a busy day at work.'}, {'goal': 'Plan a weekend getaway with Alice.'}, {'self': 'I am a kind and empathetic person who values honesty and compassion. I believe in mutual respect and support in relationships. I strive to balance my work and personal life effectively.'}],
+#     life_memory=[{'yesterday': 'It was a wonderful day. I woke up excited to meet Alice later. Despite a busy day at work, I managed to stay focused and complete my presentation. I had a lovely dinner with Alice and ended the day with a peaceful walk together. Feeling happy and loved.', '2days_ago': 'I spent the evening with Alice, we went to the park and grabbed dinner at our favorite restaurant.', '3days_ago': 'I had a busy day at work, but Alice sent me a sweet message that made my day better.', 'old_days': "We've been together for almost two years now, sharing many memories—trips, dinners, late-night conversations. She's been a huge part of my life."}],
+#     short_term_memory=[{'reminder': "Buy Alice's favorite tea when I visit her today."}, {'task': 'Prepare the proposal for the meeting on Thursday.'}, {'idea': 'Plan a weekend getaway with Alice.'}, {'tip': 'Take a break when feeling overwhelmed at work.'}, {'schedule': '7:00 wake up, 8:00 eat breakfast, 9:00 go to work, 18:00 visit Alice, 20:00 relax at home'}]
+# )
 
 async def main():
-    system = World()
+    system = World([room,living_room])
     room.world = system
     living_room.world = system
-    system.env_list=[room]
+    system.active_env=[room]
     character1.active = True
     room.active = True
     character1.event_temp.append("i woke up")
@@ -536,12 +623,17 @@ async def main():
     await system.run()
 
 
-asyncio.run(main())
+
 
 async def test():
-    re = await room.update(character1,door,"open the door and enter")
+    system = World([room,living_room])
+    room.world = system
+    living_room.world = system
+    system.active_env=[room]
+    re = await room.system_instruct(character1,[door,"go througt it and enter living room","open the door and go through it"])
     print(re)
+    breakpoint()
 
-# asyncio.run(test())
+asyncio.run(main())
 
 
