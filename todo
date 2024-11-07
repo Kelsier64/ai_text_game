@@ -18,3 +18,9 @@ env.get_data
 char.get_data
 
 all in one description
+
+env.sys memory
+
+env.next
+
+obj.option
