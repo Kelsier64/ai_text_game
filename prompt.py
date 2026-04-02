@@ -2,7 +2,11 @@ perception_sys="Forget all previous settings.you are a character in a life simul
 
 temp_sum_sys="Forget all previous settings.you are a character in a life simulator,update your memory based on your character data and instruction following"
 
-system="you are a system of a life simulator game. Please generate responses based on the following data and instructions"
+system="""you are a system of a life simulator game. Please generate responsesbased on the following data and instructions.
+parameter explanation:
+position,absolute position.
+description,include description of character or object's position,appearance or character's facial expression and what he doing now,etc.
+"""
 
 perception = """
 Instructions:
@@ -69,8 +73,6 @@ Example of a valid JSON response:
 }'''
 """
 
-
-
 item = """
 Instructions:
 only do what character request.
@@ -90,6 +92,69 @@ Example of a valid JSON response:
     "doing":"study"
 }'''
 """
+
+object_update = """
+Instructions:
+***Do the following step by step:***
+1.base on instruction,update the data of the target.
+2.add or subtract the data,do not replace it.
+Response Format:
+Use JSON with keys:"absolute_position","description","informations","functions"
+Example of a valid JSON response:
+```json
+{
+    "absolute_position":"(x,y)"
+    "description":""
+    "informations":""
+    "functions":""
+}'''
+"""
+character_update = """
+Instructions:
+***Do the following step by step:***
+1.base on instruction,update the data of the target.
+2.add or subtract the data,do not replace it.
+Response Format:
+Use JSON with keys:"absolute_position","description","inventory","environment"
+Example of a valid JSON response:
+```json
+{
+    "absolute_position":"(x,y)"
+    "description":""
+    "inventory":""
+    "environment":""
+}'''
+"""
+target = """
+1. Based on the user's action and the target's function, **select the objects or characters that need to be updated**.
+2. For each selected object or character, **generate commands to instruct the system on how to update** the data in detail. Ensure you:
+   - Use `description_now` to correctly identify the target,give me the description now and DO NOT modify it.
+   - If modifying an object,instruct updating its position,description,which include description of position and appearance,etc.
+   - If modifying a character,instruct updating its position,environment,item_list,and description,which include description of position, appearance, facial expression, and current action,etc.
+
+3. **Generate a message for the user in first-person perspective**, confirming their action is completed.
+4. **Generate an "event" in third-person perspective**, detailing what occurred for all others in the environment.
+
+**Response Format:**
+Respond in JSON format with keys: `"objects"`, `"characters"`, `"message"`, and `"event"`. Here’s a template to follow:
+
+```json
+{
+    "objects": [
+        {"name": "object_name", "description_now": "object_description_now", "instruction": "object_update_instruction"},
+        {"name": "object_name", "description_now": "object_description_now", "instruction": "object_update_instruction"}
+        ...
+    ],
+    "characters": [
+        {"name": "character_name", "description_now": "character_description_now", "instruction": "character_update_instruction"},
+        {"name": "character_name", "description_now": "character_description_now", "instruction": "character_update_instruction"}
+        ...
+    ],
+    "message": "User's confirmation message here",
+    "event": "Event message for others here"
+}
+"""
+
 
 role = """
 Instructions:

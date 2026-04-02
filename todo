@@ -5,3 +5,22 @@ make fake memory
 same env same fake memory
 do function --> keep and fake memory
 char item list
+role_interaction update data
+role item id
+env list
+character.get_data
+env update
+item.visible
+
+relative position
+
+env.get_data
+char.get_data
+
+all in one description
+
+env.sys memory
+
+env.next
+
+obj.option
